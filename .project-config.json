@@ -1,0 +1,22 @@
+{
+  "workflow": {
+    "deployment": {
+      "primary": "vercel",
+      "repository": "https://github.com/rmarti55/ToDoApp",
+      "preview": "github",
+      "local_development": false
+    },
+    "development_guidelines": {
+      "commit_after_each_task": true,
+      "push_to_github": true,
+      "verify_on_github": true,
+      "deploy_to_vercel": true
+    },
+    "task_completion_checklist": [
+      "Commit changes to GitHub",
+      "Verify changes on GitHub repository",
+      "Deploy to Vercel",
+      "Verify deployment on Vercel"
+    ]
+  }
+} 
