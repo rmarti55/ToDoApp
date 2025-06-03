@@ -14,6 +14,7 @@ interface Task {
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const handleSaveTask = (title: string, content: string) => {
     const newTask: Task = {
@@ -22,6 +23,27 @@ export default function Home() {
       content,
     };
     setTasks([...tasks, newTask]);
+  };
+
+  const handleEditTask = (id: string, title: string, content: string) => {
+    setTasks(tasks.map(task => 
+      task.id === id 
+        ? { ...task, title: title || 'Untitled Task', content }
+        : task
+    ));
+  };
+
+  const handleDeleteTask = (id: string) => {
+    setTasks(tasks.filter(task => task.id !== id));
+  };
+
+  const handleCardClick = (task: Task) => {
+    setEditingTask(task);
+  };
+
+  const closeModal = () => {
+    setIsCreating(false);
+    setEditingTask(null);
   };
 
   return (
@@ -34,11 +56,28 @@ export default function Home() {
         </Button>
       </div>
 
-      {isCreating && (
+      {(isCreating || editingTask) && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <TaskCard
-            onClose={() => setIsCreating(false)}
-            onSave={handleSaveTask}
+            task={editingTask}
+            onClose={closeModal}
+            onSave={editingTask ? 
+              (title, content) => {
+                handleEditTask(editingTask.id, title, content);
+                closeModal();
+              } : 
+              (title, content) => {
+                handleSaveTask(title, content);
+                closeModal();
+              }
+            }
+            onDelete={editingTask ? 
+              () => {
+                handleDeleteTask(editingTask.id);
+                closeModal();
+              } : 
+              undefined
+            }
           />
         </div>
       )}
@@ -47,13 +86,17 @@ export default function Home() {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
+            className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group"
+            onClick={() => handleCardClick(task)}
           >
-            <h2 className="text-xl font-bold mb-2">{task.title}</h2>
+            <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{task.title}</h2>
             <div
-              className="prose prose-sm max-w-none"
+              className="prose prose-sm max-w-none text-gray-600"
               dangerouslySetInnerHTML={{ __html: task.content }}
             />
+            <div className="mt-3 text-xs text-gray-400">
+              Click to edit
+            </div>
           </div>
         ))}
         
