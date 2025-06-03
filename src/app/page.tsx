@@ -1,31 +1,62 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useTodoStore } from "@/lib/store"
-import { useEffect, useState } from "react"
-import { Trash2 } from "lucide-react"
-import { createClient } from '@/lib/supabase-client'
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { TaskCard } from '@/components/tasks/TaskCard';
+import { Plus } from 'lucide-react';
 
-export default async function Home() {
-  const supabase = createClient()
-  const { data, error } = await supabase.from('todo_lists').select('*')
-  
+interface Task {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export default function Home() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleSaveTask = (title: string, content: string) => {
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title,
+      content,
+    };
+    setTasks([...tasks, newTask]);
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold mb-8">Todo App</h1>
-        <div className="mb-4">
-          <p>Supabase Connection Test:</p>
-          <pre className="mt-2 p-4 bg-gray-100 rounded">
-            {error ? `Error: ${error.message}` : `Connected! Found ${data?.length || 0} lists`}
-          </pre>
-        </div>
-        <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+    <main className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">My Tasks</h1>
+        <Button onClick={() => setIsCreating(true)}>
+          <Plus className="h-4 w-4 mr-2" />
           Add New Task
-        </button>
+        </Button>
+      </div>
+
+      {isCreating && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+          <TaskCard
+            onClose={() => setIsCreating(false)}
+            onSave={handleSaveTask}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="border rounded-lg p-4 hover:shadow-lg transition-shadow"
+          >
+            <h2 className="text-xl font-bold mb-2">{task.title}</h2>
+            <div
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: task.content }}
+            />
+          </div>
+        ))}
       </div>
     </main>
-  )
+  );
 }
