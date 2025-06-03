@@ -18,7 +18,7 @@ export default function Home() {
   const handleSaveTask = (title: string, content: string) => {
     const newTask: Task = {
       id: Date.now().toString(),
-      title,
+      title: title || 'Untitled Task',
       content,
     };
     setTasks([...tasks, newTask]);
@@ -35,7 +35,7 @@ export default function Home() {
       </div>
 
       {isCreating && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <TaskCard
             onClose={() => setIsCreating(false)}
             onSave={handleSaveTask}
@@ -47,7 +47,7 @@ export default function Home() {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="border rounded-lg p-4 hover:shadow-lg transition-shadow"
+            className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
           >
             <h2 className="text-xl font-bold mb-2">{task.title}</h2>
             <div
@@ -56,6 +56,12 @@ export default function Home() {
             />
           </div>
         ))}
+        
+        {tasks.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 text-lg">No tasks yet. Click "Add New Task" to get started!</p>
+          </div>
+        )}
       </div>
     </main>
   );
