@@ -62,8 +62,8 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
   };
 
   return (
-    <div onKeyDown={handleKeyDown} tabIndex={-1}>
-      <Card className="w-full max-w-2xl mx-auto shadow-xl">
+    <div onKeyDown={handleKeyDown} tabIndex={-1} className="relative z-50">
+      <Card className="w-full max-w-2xl mx-auto shadow-xl bg-white">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-xl font-bold flex-1">
             <Input
@@ -121,10 +121,7 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
             </div>
           )}
           
-          <div className="mt-4 flex justify-between items-center">
-            <p className="text-sm text-gray-500">
-              Tip: Press Esc to close, Cmd+Enter to save
-            </p>
+          <div className="mt-4 flex justify-end">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>
                 Cancel
