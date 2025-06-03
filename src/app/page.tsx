@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Plus } from 'lucide-react';
+// import { getTasks, createTask, updateTask, deleteTask } from '@/app/actions'; // Will uncomment later
 
 interface Task {
   id: string;
@@ -16,16 +17,34 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  const handleSaveTask = (title: string, content: string) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
+  // useEffect(() => { // Will uncomment and modify later for Supabase fetching
+  //   const loadTasks = async () => {
+  //     const fetchedTasks = await getTasks();
+  //     setTasks(fetchedTasks);
+  //   };
+  //   loadTasks();
+  // }, []);
+
+  const handleSaveTask = async (title: string, content: string) => {
+    const newTaskData = {
       title: title || 'Untitled Task',
       content,
     };
-    setTasks([...tasks, newTask]);
+    // const savedTask = await createTask(newTaskData); // Will use later
+    // setTasks([...tasks, savedTask]);
+    // Temporary in-memory save:
+    const tempNewTask = { ...newTaskData, id: Date.now().toString() };
+    setTasks([...tasks, tempNewTask]);
   };
 
-  const handleEditTask = (id: string, title: string, content: string) => {
+  const handleEditTask = async (id: string, title: string, content: string) => {
+    const updatedTaskData = {
+      title: title || 'Untitled Task',
+      content,
+    };
+    // const updatedTask = await updateTask(id, updatedTaskData); // Will use later
+    // setTasks(tasks.map(task => task.id === id ? updatedTask : task));
+    // Temporary in-memory edit:
     setTasks(tasks.map(task => 
       task.id === id 
         ? { ...task, title: title || 'Untitled Task', content }
@@ -33,7 +52,8 @@ export default function Home() {
     ));
   };
 
-  const handleDeleteTask = (id: string) => {
+  const handleDeleteTask = async (id: string) => {
+    // await deleteTask(id); // Will use later
     setTasks(tasks.filter(task => task.id !== id));
   };
 
@@ -57,7 +77,7 @@ export default function Home() {
       </div>
 
       {(isCreating || editingTask) && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <TaskCard
             task={editingTask}
             onClose={closeModal}
@@ -86,7 +106,7 @@ export default function Home() {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group"
+            className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white"
             onClick={() => handleCardClick(task)}
           >
             <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{task.title}</h2>
@@ -94,13 +114,10 @@ export default function Home() {
               className="prose prose-sm max-w-none text-gray-600"
               dangerouslySetInnerHTML={{ __html: task.content }}
             />
-            <div className="mt-3 text-xs text-gray-400">
-              Click to edit
-            </div>
           </div>
         ))}
         
-        {tasks.length === 0 && (
+        {tasks.length === 0 && !isCreating && !editingTask && (
           <div className="col-span-full text-center py-12">
             <p className="text-gray-500 text-lg">No tasks yet. Click "Add New Task" to get started!</p>
           </div>
