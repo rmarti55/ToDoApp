@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -18,9 +18,10 @@ import {
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
+  editorInstanceRef?: React.MutableRefObject<Editor | null>;
 }
 
-export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
+export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -32,7 +33,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         nested: true,
       }),
     ],
-    content,
+    content: '',
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
@@ -45,9 +46,20 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      editor.commands.setContent(content, false);
     }
   }, [editor, content]);
+
+  useEffect(() => {
+    if (editorInstanceRef) {
+      editorInstanceRef.current = editor;
+    }
+    return () => {
+      if (editorInstanceRef) {
+        editorInstanceRef.current = null;
+      }
+    };
+  }, [editor, editorInstanceRef]);
 
   if (!editor) {
     return null;

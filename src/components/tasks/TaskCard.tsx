@@ -1,20 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Clock } from 'lucide-react';
+import { formatTaskDate } from '@/lib/utils/date-formatter';
+import type { Editor } from '@tiptap/core';
 
 // This interface should align with what the database provides or what page.tsx uses.
 export interface TaskForCard {
   id: string;
   title: string | null;
   content: string | null;
-  // created_at?: string; // Optional if needed by card logic
+  created_at: string;
+  updated_at: string;
 }
 
 interface TaskCardProps {
-  task?: TaskForCard | null; // Use the updated interface
+  task?: TaskForCard | null;
   onClose: () => void;
   onSave: (title: string, content: string) => void;
   onDelete?: () => void;
@@ -25,6 +28,8 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
   const [content, setContent] = useState(task?.content || '');
   const [showError, setShowError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const editorRef = useRef<Editor | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null); // Ref for title input for focusing
 
   const isEditing = !!task;
 
@@ -33,19 +38,20 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
       setTitle(task.title || '');
       setContent(task.content || '');
     } else {
-      // For new tasks, ensure fields are clear
       setTitle('');
       setContent('');
+      // Focus title input for new tasks after a short delay to ensure it's rendered
+      setTimeout(() => titleInputRef.current?.focus(), 50);
     }
   }, [task]);
 
   const handleSave = () => {
-    if (!(title.trim() || content.trim())) { // Allow save if either title or content exists
+    if (!(title.trim() || content.trim())) {
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
       return;
     }
-    onSave(title, content); // Pass current state of title and content
+    onSave(title, content);
   };
 
   const handleDelete = () => {
@@ -54,26 +60,46 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleModalKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
       onClose();
     }
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSave();
-    }
   };
 
+  const handleTitleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      editorRef.current?.commands.focus();
+    }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSave();
+    }
+    // Allow Escape to bubble up to handleModalKeyDown if not handled here explicitly for closing
+  };
+  
+  const formattedCreatedAt = task?.created_at ? formatTaskDate(task.created_at) : '';
+  const formattedUpdatedAt = task?.updated_at ? formatTaskDate(task.updated_at) : '';
+  const showUpdatedAt = isEditing && formattedUpdatedAt && formattedCreatedAt !== formattedUpdatedAt;
+
   return (
-    <div onKeyDown={handleKeyDown} tabIndex={-1} className="relative z-50">
-      <Card className="w-full max-w-2xl mx-auto shadow-xl bg-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xl font-bold flex-1">
+    // Increased width, global Escape listener, relative positioning for z-index context
+    <div 
+      onKeyDown={handleModalKeyDown} 
+      tabIndex={-1} // Makes div focusable for keydown events
+      className="relative z-50 md:w-1/2 xl:w-2/5 w-full p-4 md:p-0"
+    >
+      <Card className="w-full mx-auto shadow-xl bg-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2">
+          <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
             <Input
+              ref={titleInputRef} // Assign ref
               placeholder="Enter task title..."
-              value={title} // Controlled component
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-xl font-bold border-none focus-visible:ring-0 p-0 placeholder:text-gray-400"
-              autoFocus={!isEditing}
+              onKeyDown={handleTitleInputKeyDown} // Specific keydown for title input
+              className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0"
+              // autoFocus={!isEditing} // Replaced with explicit focus in useEffect for new tasks
             />
           </CardTitle>
           <div className="flex gap-1">
@@ -93,8 +119,22 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <RichTextEditor content={content} onChange={setContent} /> 
+        <CardContent className="px-6 pb-6">
+          <RichTextEditor content={content} onChange={setContent} editorInstanceRef={editorRef} /> 
+          
+          <div className="mt-3 text-xs flex items-center gap-4 flex-wrap">
+            {formattedCreatedAt && (
+              <span className="text-gray-500 flex items-center gap-1">
+                <Clock size={12} /> Created: {formattedCreatedAt}
+              </span>
+            )}
+            {showUpdatedAt && (
+              <span className="text-black flex items-center gap-1">
+                <Clock size={12} /> Updated: {formattedUpdatedAt}
+              </span>
+            )}
+          </div>
+
           {showError && (
             <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
               Please add a title or some content before saving.

@@ -3,28 +3,38 @@
 import { useState, useEffect, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Plus } from 'lucide-react';
-import { getTasks, createTask, updateTask, deleteTask, Task as DbTask } from '@/app/actions';
+import { Plus, Clock } from 'lucide-react';
+import { getTasks, createTask, updateTask, deleteTask, DbTask } from '@/app/actions';
+import { formatTaskDate } from '@/lib/utils/date-formatter';
 
-// Client-side Task interface, can omit created_at if not directly used for display logic here
-interface Task {
+// Client-side Task interface now includes dates for display and passing to TaskCard
+interface ClientTask {
   id: string;
   title: string | null; 
   content: string | null;
+  created_at: string; 
+  updated_at: string;
 }
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<ClientTask | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     async function loadTasks() {
       setIsLoading(true);
-      const fetchedTasks = await getTasks();
-      setTasks(fetchedTasks.map(ft => ({ id: ft.id, title: ft.title, content: ft.content })));
+      const fetchedTasks: DbTask[] = await getTasks();
+      // Map DbTask to ClientTask
+      setTasks(fetchedTasks.map(ft => ({ 
+        id: ft.id, 
+        title: ft.title, 
+        content: ft.content, 
+        created_at: ft.created_at,
+        updated_at: ft.updated_at
+      })));
       setIsLoading(false);
     }
     loadTasks();
@@ -36,10 +46,11 @@ export default function Home() {
       content,
     };
     startTransition(() => {
-      createTask(newTaskData).then(savedTask => {
-        if (savedTask) {
-          setTasks(prevTasks => [savedTask, ...prevTasks].sort((a, b) => 
-            new Date( (b as DbTask).created_at ).getTime() - new Date( (a as DbTask).created_at ).getTime()
+      createTask(newTaskData).then(savedTaskDb => {
+        if (savedTaskDb) {
+          const savedTaskClient: ClientTask = { ...savedTaskDb }; // Map DbTask to ClientTask
+          setTasks(prevTasks => [savedTaskClient, ...prevTasks].sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           ));
         }
       }).catch(error => console.error("Failed to save task", error));
@@ -52,10 +63,11 @@ export default function Home() {
       content,
     };
     startTransition(() => {
-      updateTask(id, updatedTaskData).then(updatedTaskResult => {
-        if (updatedTaskResult) {
+      updateTask(id, updatedTaskData).then(updatedTaskResultDb => {
+        if (updatedTaskResultDb) {
+          const updatedTaskResultClient: ClientTask = { ...updatedTaskResultDb }; // Map DbTask to ClientTask
           setTasks(prevTasks => prevTasks.map(task => 
-            task.id === id ? updatedTaskResult : task
+            task.id === id ? updatedTaskResultClient : task
           ));
         }
       }).catch(error => console.error("Failed to update task", error));
@@ -72,7 +84,7 @@ export default function Home() {
     });
   };
 
-  const handleCardClick = (task: Task) => {
+  const handleCardClick = (task: ClientTask) => {
     setEditingTask(task);
   };
 
@@ -126,14 +138,21 @@ export default function Home() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white"
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white flex flex-col justify-between"
               onClick={() => handleCardClick(task)}
             >
-              <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{task.title || 'Untitled Task'}</h2>
-              <div
-                className="prose prose-sm max-w-none text-gray-600 break-words"
-                dangerouslySetInnerHTML={{ __html: task.content || '' }}
-              />
+              <div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{task.title || 'Untitled Task'}</h2>
+                <div
+                  className="prose prose-sm max-w-none text-gray-600 break-words mb-3"
+                  dangerouslySetInnerHTML={{ __html: task.content || '' }}
+                />
+              </div>
+              <div className="mt-auto pt-2 border-t border-gray-100">
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Clock size={12} /> {formatTaskDate(task.created_at)}
+                </span>
+              </div>
             </div>
           ))}
           

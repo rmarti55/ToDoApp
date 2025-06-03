@@ -13,11 +13,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface Task {
+export interface DbTask {
   id: string;
   title: string | null;
   content: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface TaskInput {
@@ -25,7 +26,7 @@ export interface TaskInput {
   content: string;
 }
 
-export async function getTasks(): Promise<Task[]> {
+export async function getTasks(): Promise<DbTask[]> {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
@@ -35,10 +36,10 @@ export async function getTasks(): Promise<Task[]> {
     console.error('Error fetching tasks:', error);
     return [];
   }
-  return data as Task[];
+  return data as DbTask[];
 }
 
-export async function createTask(taskData: TaskInput): Promise<Task | null> {
+export async function createTask(taskData: TaskInput): Promise<DbTask | null> {
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -53,10 +54,10 @@ export async function createTask(taskData: TaskInput): Promise<Task | null> {
     return null;
   }
   revalidatePath('/');
-  return data as Task;
+  return data as DbTask;
 }
 
-export async function updateTask(id: string, taskData: TaskInput): Promise<Task | null> {
+export async function updateTask(id: string, taskData: TaskInput): Promise<DbTask | null> {
   const { data, error } = await supabase
     .from('tasks')
     .update({
@@ -72,7 +73,7 @@ export async function updateTask(id: string, taskData: TaskInput): Promise<Task 
     return null;
   }
   revalidatePath('/');
-  return data as Task;
+  return data as DbTask;
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
