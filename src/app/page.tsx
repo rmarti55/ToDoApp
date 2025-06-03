@@ -97,10 +97,6 @@ export default function Home() {
     <main className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">My Tasks</h1>
-        <Button onClick={() => setIsCreating(true)} disabled={isLoading || isPending}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Task
-        </Button>
       </div>
 
       {(isCreating || editingTask) && (
@@ -155,10 +151,21 @@ export default function Home() {
               </div>
             </div>
           ))}
-          
+          {/* Add Task Card */}
+          <div
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors min-h-[120px]"
+            onClick={() => setIsCreating(true)}
+            tabIndex={0}
+            aria-label="Add new task"
+          >
+            <div className="w-full h-6 bg-gray-300 rounded mb-2 animate-pulse" />
+            <div className="w-2/3 h-4 bg-gray-200 rounded mb-1 animate-pulse" />
+            <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse" />
+            <span className="mt-4 text-gray-400 text-sm font-medium">Add new task…</span>
+          </div>
           {tasks.length === 0 && !isCreating && !editingTask && (
             <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No tasks yet. Click "Add New Task" to get started!</p>
+              <p className="text-gray-500 text-lg">No tasks yet. Click the card below to get started!</p>
             </div>
           )}
         </div>
