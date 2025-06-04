@@ -304,6 +304,38 @@ export default function Home() {
     });
   };
 
+  const handleAutoSaveTask = async (taskId: string, title: string, content: string, categoryId: string | null): Promise<void> => {
+    const taskDataToUpdate = { 
+      title, 
+      content, 
+      category_id: categoryId 
+    };
+    
+    return new Promise((resolve, reject) => {
+      startTransition(async () => {
+        try {
+          const updatedTaskResultDb = await updateTask(taskId, taskDataToUpdate);
+          if (updatedTaskResultDb) {
+            const updatedTaskClient: ClientTask = { ...updatedTaskResultDb, category_id: updatedTaskResultDb.category_id || null };
+            
+            setTasks(prevTasks => 
+              prevTasks.map(t => (t.id === taskId ? updatedTaskClient : t))
+                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            );
+            
+            setEditingTask(prevEditingTask => 
+              prevEditingTask && prevEditingTask.id === taskId ? updatedTaskClient : prevEditingTask
+            );
+          }
+          resolve(); // Resolve the promise after state updates
+        } catch (error) {
+          console.error("Auto-save failed for task:", taskId, error);
+          reject(error); // Reject the promise if updateTask fails
+        }
+      });
+    });
+  };
+
   const totalTasks = tasks.length;
   const totalCategories = categories.length;
 
@@ -433,23 +465,21 @@ export default function Home() {
           <TaskCard
             task={editingTask}
             categories={categories}
-            currentCategoryId={editingTask ? editingTask.category_id : selectedCategory?.id || null}
+            currentCategoryId={selectedCategory?.id}
             onClose={closeModal}
-            onSave={(title, content, categoryId) => {
-              if (editingTask) {
-                handleEditTask(editingTask.id, title, content, categoryId);
-              } else {
-                handleSaveTask(title, content, categoryId);
-              }
-              closeModal();
-            }}
-            onDelete={editingTask ?
-              () => {
-                handleDeleteTask(editingTask.id);
-                closeModal();
-              } :
-              undefined
+            onSave={
+              editingTask 
+                ? (title, content, catId) => { 
+                    handleEditTask(editingTask.id, title, content, catId); 
+                    closeModal(); // Manual save of existing task closes modal
+                  }
+                : (title, content, catId) => { 
+                    handleSaveTask(title, content, catId); 
+                    closeModal(); // Save of new task closes modal
+                  }
             }
+            onAutoSave={editingTask ? handleAutoSaveTask : undefined}
+            onDelete={editingTask ? () => handleDeleteTask(editingTask.id) : undefined}
           />
         </div>
       )}
