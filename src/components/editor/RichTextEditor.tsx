@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import {
   Bold,
   Italic,
+  Strikethrough,
   List,
   ListOrdered,
   CheckSquare,
@@ -29,9 +30,16 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
       Placeholder.configure({
         placeholder: 'Start writing your task details...',
       }),
-      TaskList,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'list-none p-0',
+        },
+      }),
       TaskItem.configure({
         nested: true,
+        HTMLAttributes: {
+          class: 'flex items-center gap-2',
+        },
       }),
       Image.configure({
         // inline: true,
@@ -44,7 +52,10 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-4',
+        class: 'prose prose-sm max-w-none focus:outline-none p-4',
+      },
+      transformPastedHTML(html) {
+        return html;
       },
     },
   });
@@ -93,6 +104,16 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
         >
           <Italic className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          className={editor.isActive('strike') ? 'bg-gray-200' : ''}
+          title="Strikethrough"
+        >
+          <Strikethrough className="h-4 w-4" />
+        </Button>
         <div className="w-px bg-gray-300 mx-1" />
         <Button
           type="button"
@@ -120,7 +141,7 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
           size="sm"
           onClick={() => editor.chain().focus().toggleTaskList().run()}
           className={editor.isActive('taskList') ? 'bg-gray-200' : ''}
-          title="Task List"
+          title="Task List (Toggle)"
         >
           <CheckSquare className="h-4 w-4" />
         </Button>
@@ -148,7 +169,7 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
       </div>
       <EditorContent 
         editor={editor} 
-        className="bg-white [&_.ProseMirror]:min-h-[200px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none" 
+        className="bg-white [&_.ProseMirror]:min-h-[200px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none [&_.ProseMirror_ul[data-type=taskList]]:list-none [&_.ProseMirror_ul[data-type=taskList]]:p-0 [&_.ProseMirror_li[data-type=taskItem]]:flex [&_.ProseMirror_li[data-type=taskItem]]:items-center [&_.ProseMirror_li[data-type=taskItem]]:gap-2"
       />
     </div>
   );
