@@ -552,29 +552,35 @@ export default function Home() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="border rounded-lg p-4 hover:shadow-lg transition-shadow group bg-white flex flex-col justify-between h-40 max-h-40 min-h-[10rem] overflow-hidden relative"
+              className="border rounded-lg hover:shadow-lg transition-shadow group bg-white h-40 max-h-40 min-h-[10rem] overflow-hidden relative cursor-pointer"
               onClick={() => handleCardClick(task)}
               style={{ height: '10rem' }}
             >
               <Button 
                 variant="ghost"
                 size="icon"
-                className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 h-7 w-7"
+                className="absolute top-1 right-1 z-20 text-gray-400 hover:text-gray-700 h-7 w-7"
                 onClick={(e) => openMoveToCategoryModal(task, e)}
               >
                 <MoreVertical size={16}/>
               </Button>
-              <div>
+              
+              {/* Content area that can scroll behind footer */}
+              <div className="p-4 pb-12 h-full overflow-hidden">
                 <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate pr-8">
                   {task.title || 'Untitled Task'}
                 </h2>
                 <div
-                  className="prose prose-sm max-w-none text-gray-600 break-words mb-3 overflow-hidden text-ellipsis line-clamp-3"
-                  style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                  className="prose prose-sm max-w-none text-gray-600 break-words"
                   dangerouslySetInnerHTML={{ __html: task.content || '' }}
                 />
               </div>
-              <div className="mt-auto pt-2 border-t border-gray-100">
+              
+              {/* Fade gradient overlay */}
+              <div className="absolute bottom-12 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none z-10"></div>
+              
+              {/* Fixed footer at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 pt-2 bg-white border-t border-gray-100 z-10">
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Clock size={12} /> {formatTaskDate(task.created_at)}
                 </span>
