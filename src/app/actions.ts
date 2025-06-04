@@ -74,7 +74,7 @@ export async function updateCategory(id: string, categoryData: Partial<CategoryI
     .update({ name: categoryData.name.trim() })
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error updating category:', error);
