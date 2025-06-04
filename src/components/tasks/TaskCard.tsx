@@ -1,11 +1,13 @@
+'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Trash2, Clock } from 'lucide-react';
+import { X, Trash2, Clock, Folder } from 'lucide-react';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 import type { Editor } from '@tiptap/core';
+import type { Category } from '@/app/actions';
 
 // This interface should align with what the database provides or what page.tsx uses.
 export interface TaskForCard {
@@ -14,22 +16,26 @@ export interface TaskForCard {
   content: string | null;
   created_at: string;
   updated_at: string;
+  category_id?: string | null;
 }
 
 interface TaskCardProps {
   task?: TaskForCard | null;
+  categories: Category[];
+  currentCategoryId?: string | null;
   onClose: () => void;
-  onSave: (title: string, content: string) => void;
+  onSave: (title: string, content: string, categoryId: string | null) => void;
   onDelete?: () => void;
 }
 
-export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
+export function TaskCard({ task, categories, currentCategoryId, onClose, onSave, onDelete }: TaskCardProps) {
   const [title, setTitle] = useState(task?.title || '');
   const [content, setContent] = useState(task?.content || '');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(task?.category_id || currentCategoryId || null);
   const [showError, setShowError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editorRef = useRef<Editor | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null); // Ref for title input for focusing
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = !!task;
 
@@ -37,13 +43,14 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
     if (task) {
       setTitle(task.title || '');
       setContent(task.content || '');
+      setSelectedCategoryId(task.category_id || currentCategoryId || null);
     } else {
       setTitle('');
       setContent('');
-      // Focus title input for new tasks after a short delay to ensure it's rendered
+      setSelectedCategoryId(currentCategoryId || null);
       setTimeout(() => titleInputRef.current?.focus(), 50);
     }
-  }, [task]);
+  }, [task, currentCategoryId]);
 
   const handleSave = () => {
     if (!(title.trim() || content.trim())) {
@@ -51,7 +58,7 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
       setTimeout(() => setShowError(false), 3000);
       return;
     }
-    onSave(title, content);
+    onSave(title, content, selectedCategoryId);
   };
 
   const handleDelete = () => {
@@ -75,7 +82,6 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
       e.preventDefault();
       handleSave();
     }
-    // Allow Escape to bubble up to handleModalKeyDown if not handled here explicitly for closing
   };
   
   const formattedCreatedAt = task?.created_at ? formatTaskDate(task.created_at) : '';
@@ -83,23 +89,21 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
   const showUpdatedAt = isEditing && formattedUpdatedAt && formattedCreatedAt !== formattedUpdatedAt;
 
   return (
-    // Increased width, global Escape listener, relative positioning for z-index context
     <div 
       onKeyDown={handleModalKeyDown} 
-      tabIndex={-1} // Makes div focusable for keydown events
+      tabIndex={-1} 
       className="relative z-50 md:w-1/2 xl:w-2/5 w-full p-4 md:p-0"
     >
       <Card className="w-full mx-auto shadow-xl bg-white">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2">
           <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
             <Input
-              ref={titleInputRef} // Assign ref
+              ref={titleInputRef}
               placeholder="Enter task title..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={handleTitleInputKeyDown} // Specific keydown for title input
+              onKeyDown={handleTitleInputKeyDown}
               className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0"
-              // autoFocus={!isEditing} // Replaced with explicit focus in useEffect for new tasks
             />
           </CardTitle>
           <div className="flex gap-1">
@@ -122,6 +126,29 @@ export function TaskCard({ task, onClose, onSave, onDelete }: TaskCardProps) {
         <CardContent className="px-6 pb-6">
           <RichTextEditor content={content} onChange={setContent} editorInstanceRef={editorRef} /> 
           
+          <div className="mt-4 mb-3">
+            <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <div className="relative">
+              <select 
+                id="category-select"
+                value={selectedCategoryId || "uncategorized"} 
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                  const value = e.target.value;
+                  setSelectedCategoryId(value === "uncategorized" ? null : value);
+                }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
+              >
+                <option value="uncategorized">All Tasks (Uncategorized)</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <Folder size={14} className="text-gray-500"/>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-3 text-xs flex items-center gap-4 flex-wrap">
             {formattedCreatedAt && (
               <span className="text-gray-500 flex items-center gap-1">

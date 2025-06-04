@@ -23,6 +23,7 @@ export default function Home() {
   const [editingTask, setEditingTask] = useState<ClientTask | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [initialCategoryApplied, setInitialCategoryApplied] = useState(false);
   const [isPending, startTransition] = useTransition();
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -32,34 +33,53 @@ export default function Home() {
       setIsLoadingCategories(true);
       const cats = await getCategories();
       setCategories(cats);
-      if (cats.length > 0 && !selectedCategory) {
-        setSelectedCategory(cats[0]);
-      }
       setIsLoadingCategories(false);
+      // Initial category selection will be handled by the effect below once isLoadingCategories is false
     }
     loadInitialCategories();
   }, []);
 
-  // Load tasks when selectedCategory changes
+  // Effect to set the initial category once categories are loaded, or handle if selected category is removed
   useEffect(() => {
-    async function loadTasksForCategory() {
-      if (!selectedCategory && categories.length > 0 && !isLoadingCategories) { 
-        // If categories have loaded, and none is selected, default to the first one.
-        // This handles the case where initial selection might not have happened if categories were empty then.
-        setSelectedCategory(categories[0]);
-        return;
+    if (isLoadingCategories) return; // Wait for categories to load
+
+    if (!initialCategoryApplied) {
+      if (categories.length > 0) {
+        setSelectedCategory(categories[0]); // Default to the first category
+      } else {
+        setSelectedCategory(null); // Default to "All Tasks" if no categories exist
       }
-      if (selectedCategory || (categories.length === 0 && !isLoadingCategories) ) { 
-        setIsLoadingTasks(true);
-        const fetchedTasks: DbTask[] = await getTasksByCategory(selectedCategory?.id || null);
-        setTasks(fetchedTasks.map(ft => ({ ...ft })));
-        setIsLoadingTasks(false);
+      setInitialCategoryApplied(true); // Mark that initial selection logic has run
+    } else {
+      // If a category was selected, but it no longer exists (e.g., deleted), fall back to "All Tasks"
+      if (selectedCategory && !categories.find(c => c.id === selectedCategory.id)) {
+        setSelectedCategory(null);
       }
     }
-    if (!isLoadingCategories) {
-        loadTasksForCategory();
+  }, [categories, isLoadingCategories, initialCategoryApplied, selectedCategory]);
+
+  // Load tasks when selectedCategory changes OR when initial category setup is complete and categories are loaded
+  useEffect(() => {
+    async function loadTasksForCurrentCategory() {
+      // Only load tasks if category loading is complete AND initial selection logic has run.
+      if (isLoadingCategories || !initialCategoryApplied) {
+        if (initialCategoryApplied && selectedCategory === null) { 
+          // Allow loading for "All Tasks (Uncategorized)" even if categories are still loading, 
+          // provided initial setup decided on 'null'
+        } else {
+            return;
+        }
+      }
+      
+      setIsLoadingTasks(true);
+      const categoryIdToFetch = selectedCategory?.id || null; // Handles 'null' for "All Tasks"
+      const fetchedTasks: DbTask[] = await getTasksByCategory(categoryIdToFetch);
+      // Ensure category_id is part of the ClientTask, even if undefined
+      setTasks(fetchedTasks.map(ft => ({ ...ft, category_id: ft.category_id || null })));
+      setIsLoadingTasks(false);
     }
-  }, [selectedCategory, categories, isLoadingCategories]);
+    loadTasksForCurrentCategory();
+  }, [selectedCategory, isLoadingCategories, initialCategoryApplied]);
 
   // Click outside handler for category dropdown
   useEffect(() => {
@@ -75,37 +95,49 @@ export default function Home() {
     };
   }, [categoryDropdownRef]);
 
-  const handleSaveTask = (title: string, content: string) => {
-    const newTaskData = {
+  const handleSaveTask = (title: string, content: string, newCategoryId?: string | null) => {
+    const taskDetails = {
       title: title,
       content,
-      category_id: selectedCategory?.id || null,
+      category_id: newCategoryId !== undefined ? newCategoryId : selectedCategory?.id || null,
     };
     startTransition(() => {
-      createTask(newTaskData).then(savedTaskDb => {
+      createTask(taskDetails).then(savedTaskDb => {
         if (savedTaskDb) {
-          const savedTaskClient: ClientTask = { ...savedTaskDb };
-          setTasks(prevTasks => [savedTaskClient, ...prevTasks].sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          ));
+          // Only add to current view if it matches the selected category
+          if ((savedTaskDb.category_id || null) === (selectedCategory?.id || null)) {
+            const savedTaskClient: ClientTask = { ...savedTaskDb, category_id: savedTaskDb.category_id || null };
+            setTasks(prevTasks => [savedTaskClient, ...prevTasks].sort((a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            ));
+          } else if (newCategoryId === undefined) { // if creating in current view but assigned elsewhere via logic not yet UI-exposed
+            // This case implies a mismatch, perhaps log or handle
+          }
         }
       }).catch(error => console.error("Failed to save task", error));
     });
   };
 
-  const handleEditTask = (id: string, title: string, content: string) => {
+  const handleEditTask = (id: string, title: string, content: string, newCategoryId?: string | null) => {
     const updatedTaskData = {
       title: title,
       content,
-      category_id: selectedCategory?.id || null,
+      category_id: newCategoryId !== undefined ? newCategoryId : selectedCategory?.id || null, // Use newCategoryId if provided
     };
     startTransition(() => {
       updateTask(id, updatedTaskData).then(updatedTaskResultDb => {
         if (updatedTaskResultDb) {
-          const updatedTaskResultClient: ClientTask = { ...updatedTaskResultDb };
-          setTasks(prevTasks => prevTasks.map(task =>
-            task.id === id ? updatedTaskResultClient : task
-          ));
+          const updatedTaskClient: ClientTask = { ...updatedTaskResultDb, category_id: updatedTaskResultDb.category_id || null };
+          // Update task in the list or remove it if its category changed and it's no longer in the current view
+          const currentViewCategoryId = selectedCategory?.id || null;
+          if ((updatedTaskClient.category_id || null) === currentViewCategoryId) {
+            setTasks(prevTasks => prevTasks.map(task =>
+              task.id === id ? updatedTaskClient : task
+            ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+          } else {
+            // Task moved to a different category, remove from current view
+            setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+          }
         }
       }).catch(error => console.error("Failed to update task", error));
     });
@@ -134,6 +166,7 @@ export default function Home() {
     setSelectedCategory(cat);
     setShowCategoryDropdown(false);
     setShowNewCategoryInput(false);
+    // initialCategoryApplied is already true, so this selection will be respected
   };
 
   const handleCreateCategory = async () => {
@@ -239,17 +272,17 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <TaskCard
             task={editingTask}
+            categories={categories}
+            currentCategoryId={editingTask ? editingTask.category_id : selectedCategory?.id || null}
             onClose={closeModal}
-            onSave={editingTask ?
-              (title, content) => {
-                handleEditTask(editingTask.id, title, content);
-                closeModal();
-              } :
-              (title, content) => {
-                handleSaveTask(title, content);
-                closeModal();
+            onSave={(title, content, categoryId) => {
+              if (editingTask) {
+                handleEditTask(editingTask.id, title, content, categoryId);
+              } else {
+                handleSaveTask(title, content, categoryId);
               }
-            }
+              closeModal();
+            }}
             onDelete={editingTask ?
               () => {
                 handleDeleteTask(editingTask.id);
