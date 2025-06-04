@@ -251,8 +251,9 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
       onKeyDown={handleModalKeyDown} 
       tabIndex={-1} 
       className="relative z-50 w-full md:w-3/4 p-4 md:p-0 flex flex-col h-[90vh] max-h-[750px] min-h-[600px] overflow-hidden shadow-2xl rounded-lg"
+      onClick={handleClose}
     >
-      <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden">
+      <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0 border-b">
           <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
             <Input
