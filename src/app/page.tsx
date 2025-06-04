@@ -472,27 +472,25 @@ export default function Home() {
       </div>
 
       {(isCreatingTask || editingTask) && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-40">
-          <TaskCard
-            task={editingTask}
-            categories={categories}
-            currentCategoryId={selectedCategory?.id}
-            onClose={closeModal}
-            onSave={
-              editingTask 
-                ? (title, content, catId) => { 
-                    handleEditTask(editingTask.id, title, content, catId); 
-                    closeModal(); // Manual save of existing task closes modal
-                  }
-                : (title, content, catId) => { 
-                    handleSaveTask(title, content, catId); 
-                    closeModal(); // Save of new task closes modal
-                  }
-            }
-            onAutoSave={editingTask ? handleAutoSaveTask : undefined}
-            onDelete={editingTask ? () => handleDeleteTask(editingTask.id) : undefined}
-          />
-        </div>
+        <TaskCard
+          task={editingTask}
+          categories={categories}
+          currentCategoryId={selectedCategory?.id}
+          onClose={closeModal}
+          onSave={
+            editingTask 
+              ? (title, content, catId) => { 
+                  handleEditTask(editingTask.id, title, content, catId); 
+                  closeModal(); // Manual save of existing task closes modal
+                }
+              : (title, content, catId) => { 
+                  handleSaveTask(title, content, catId); 
+                  closeModal(); // Save of new task closes modal
+                }
+          }
+          onAutoSave={editingTask ? handleAutoSaveTask : undefined}
+          onDelete={editingTask ? () => handleDeleteTask(editingTask.id) : undefined}
+        />
       )}
 
       {/* "Move to Category" Modal */}

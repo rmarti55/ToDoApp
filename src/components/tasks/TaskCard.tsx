@@ -248,115 +248,120 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
 
   return (
     <div 
-      onKeyDown={handleModalKeyDown} 
-      tabIndex={-1} 
-      className="relative z-50 w-full md:w-3/4 p-4 md:p-0 flex flex-col h-[90vh] max-h-[750px] min-h-[600px] overflow-hidden shadow-2xl rounded-lg"
+      className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-40"
       onClick={handleClose}
+      onKeyDown={handleModalKeyDown} 
+      tabIndex={-1}
     >
-      <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0 border-b">
-          <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
-            <Input
-              ref={titleInputRef}
-              placeholder="Enter task title..."
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              onKeyDown={handleTitleInputKeyDown}
-              className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </CardTitle>
-          <div className="flex gap-1 pr-2">
-            {isEditing && onDelete && (
-              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={handleClose} type="button">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
-          <div className="flex-grow overflow-hidden px-6 pt-6">
-            <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
-          </div>
-          
-          <div className="flex-shrink-0 pt-3 pb-3 border-t bg-gray-50 px-6 mt-auto">
-            <div className="mb-3">
-                <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <div className="relative">
-                  <select 
-                      id="category-select"
-                      value={selectedCategoryId || "uncategorized"} 
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const value = e.target.value;
-                        handleCategoryChange(value === "uncategorized" ? null : value);
-                      }}
-                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
-                  >
-                      <option value="uncategorized">All Tasks (Uncategorized)</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <Folder size={14} className="text-gray-500"/>
-                  </div>
-                </div>
-            </div>
-
-            <div className="text-xs text-gray-500 mb-2 py-2 border-t">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Keyboard size={14} />
-                    {commonKeystrokes.slice(0, 2).map(k => (
-                        <span key={k.cmd} className="whitespace-nowrap"><kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd> {k.desc}</span>
-                    ))}
-                    <span className="whitespace-nowrap">...</span>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0">
-                    <Info size={14}/>
+      <div 
+        className="relative z-50 w-full md:w-3/4 p-4 md:p-0 flex flex-col h-[90vh] max-h-[750px] min-h-[600px] overflow-hidden shadow-2xl rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0 border-b">
+            <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
+              <Input
+                ref={titleInputRef}
+                placeholder="Enter task title..."
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                onKeyDown={handleTitleInputKeyDown}
+                className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </CardTitle>
+            <div className="flex gap-1 pr-2">
+              {isEditing && onDelete && (
+                <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              </div>
-              {showAllKeystrokes && (
-                <div className="mt-2 space-y-1 text-[11px]">
-                    {allKeystrokes.map(k => (
-                        <div key={k.cmd} className="flex justify-between items-center">
-                            <span className="text-gray-600">{k.desc}</span>
-                            <kbd className="px-1.5 py-0.5 border bg-white rounded text-xs shadow-sm">{k.cmd}</kbd>
-                        </div>
-                    ))}
-                </div>
               )}
-              <p className="text-right text-gray-400 text-[10px] mt-1">Keystrokes powered by <a href="https://tiptap.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">TipTap.dev</a></p>
+              <Button variant="ghost" size="icon" onClick={handleClose} type="button">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
+            <div className="flex-grow overflow-hidden px-6 pt-6">
+              <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
             </div>
             
-            <div className="text-xs text-gray-500 flex items-center gap-4 flex-wrap">
-                {formattedCreatedAt && (
-                  <span className="text-gray-500 flex items-center gap-1">
-                      <Clock size={12} /> Created: {formattedCreatedAt}
-                  </span>
-                )}
-                {showUpdatedAt && (
-                  <span className="text-black flex items-center gap-1">
-                      <Clock size={12} /> Updated: {formattedUpdatedAt}
-                  </span>
-                )}
-            </div>
-          </div>
+            <div className="flex-shrink-0 pt-3 pb-3 border-t bg-gray-50 px-6 mt-auto">
+              <div className="mb-3">
+                  <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <div className="relative">
+                    <select 
+                        id="category-select"
+                        value={selectedCategoryId || "uncategorized"} 
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const value = e.target.value;
+                          handleCategoryChange(value === "uncategorized" ? null : value);
+                        }}
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
+                    >
+                        <option value="uncategorized">All Tasks (Uncategorized)</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <Folder size={14} className="text-gray-500"/>
+                    </div>
+                  </div>
+              </div>
 
-          {showDeleteConfirm && (
-            <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
-              <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button">Cancel</Button>
+              <div className="text-xs text-gray-500 mb-2 py-2 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                      <Keyboard size={14} />
+                      {commonKeystrokes.slice(0, 2).map(k => (
+                          <span key={k.cmd} className="whitespace-nowrap"><kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd> {k.desc}</span>
+                      ))}
+                      <span className="whitespace-nowrap">...</span>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0">
+                      <Info size={14}/>
+                  </Button>
+                </div>
+                {showAllKeystrokes && (
+                  <div className="mt-2 space-y-1 text-[11px]">
+                      {allKeystrokes.map(k => (
+                          <div key={k.cmd} className="flex justify-between items-center">
+                              <span className="text-gray-600">{k.desc}</span>
+                              <kbd className="px-1.5 py-0.5 border bg-white rounded text-xs shadow-sm">{k.cmd}</kbd>
+                          </div>
+                      ))}
+                  </div>
+                )}
+                <p className="text-right text-gray-400 text-[10px] mt-1">Keystrokes powered by <a href="https://tiptap.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">TipTap.dev</a></p>
+              </div>
+              
+              <div className="text-xs text-gray-500 flex items-center gap-4 flex-wrap">
+                  {formattedCreatedAt && (
+                    <span className="text-gray-500 flex items-center gap-1">
+                        <Clock size={12} /> Created: {formattedCreatedAt}
+                    </span>
+                  )}
+                  {showUpdatedAt && (
+                    <span className="text-black flex items-center gap-1">
+                        <Clock size={12} /> Updated: {formattedUpdatedAt}
+                    </span>
+                  )}
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {showDeleteConfirm && (
+              <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
+                <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button">Cancel</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 } 
