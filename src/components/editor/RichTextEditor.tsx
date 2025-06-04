@@ -3,7 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import Image from '@tiptap/extension-image';
+import { ResizableImage } from './ResizableImage';
 import { Button } from '@/components/ui/button';
 import { useEffect } from 'react';
 import {
@@ -41,11 +41,8 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
           class: 'flex items-center gap-2',
         },
       }),
-      Image.configure({
+      ResizableImage.configure({
         allowBase64: true,
-        HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-md border',
-        },
       }),
     ],
     content: '',
@@ -68,11 +65,11 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
                 const { schema } = view.state;
                 const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
                 if (coordinates) {
-                    const node = schema.nodes.image.create({ src });
+                    const node = schema.nodes.resizableImage.create({ src });
                     const transaction = view.state.tr.insert(coordinates.pos, node);
                     view.dispatch(transaction);
                 } else {
-                    const node = schema.nodes.image.create({ src });
+                    const node = schema.nodes.resizableImage.create({ src });
                     const transaction = view.state.tr.insert(view.state.selection.from, node);
                     view.dispatch(transaction);
                 }
