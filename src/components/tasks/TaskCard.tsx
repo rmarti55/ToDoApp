@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Trash2, Clock, Folder, Keyboard, Info, CheckCircle } from 'lucide-react';
+import { X, Trash2, Clock, Folder, Keyboard, Info } from 'lucide-react';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 import type { Editor } from '@tiptap/core';
 import type { Category } from '@/app/actions';
@@ -62,40 +62,45 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const [showAllKeystrokes, setShowAllKeystrokes] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const [isSaving, startSaveTransition] = useTransition();
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [isSavingInProgress, startSaveTransition] = useTransition();
+
+  const prevTaskPropIdRef = useRef<string | null | undefined>(null);
 
   const isEditing = !!task;
   const isMac = typeof window !== 'undefined' ? navigator.platform.toUpperCase().indexOf('MAC') >= 0 : false;
 
   useEffect(() => {
-    if (isEditing && task) {
-      setTitle(task.title || '');
-      setContent(task.content || '');
-      setSelectedCategoryId(task.category_id || null);
-      setAutoSaveStatus('idle');
-    } else {
-      try {
-        const draftString = localStorage.getItem(NEW_TASK_DRAFT_KEY);
-        if (draftString) {
-          const draft: DraftData = JSON.parse(draftString);
-          setTitle(draft.title);
-          setContent(draft.content);
-          setSelectedCategoryId(draft.selectedCategoryId);
-        } else {
+    if (task?.id !== prevTaskPropIdRef.current || (!task && prevTaskPropIdRef.current !== null)) {
+      if (task) {
+        setTitle(task.title || '');
+        setContent(task.content || '');
+        setSelectedCategoryId(task.category_id || null);
+      } else {
+        try {
+          const draftString = localStorage.getItem(NEW_TASK_DRAFT_KEY);
+          if (draftString) {
+            const draft: DraftData = JSON.parse(draftString);
+            setTitle(draft.title);
+            setContent(draft.content);
+            setSelectedCategoryId(draft.selectedCategoryId);
+          } else {
+            setTitle('');
+            setContent('');
+            setSelectedCategoryId(currentCategoryId || null);
+          }
+        } catch (error) {
+          console.error("Failed to load draft:", error);
           setTitle('');
           setContent('');
           setSelectedCategoryId(currentCategoryId || null);
         }
-      } catch (error) {
-        console.error("Failed to load draft:", error);
-        setTitle('');
-        setContent('');
-        setSelectedCategoryId(currentCategoryId || null);
+        if (!task) {
+          setTimeout(() => titleInputRef.current?.focus(), 50);
+        }
       }
-      setTimeout(() => titleInputRef.current?.focus(), 50);
     }
-  }, [task, isEditing, currentCategoryId]);
+    prevTaskPropIdRef.current = task?.id;
+  }, [task, currentCategoryId]);
 
   const saveDraft = useCallback(() => {
     if (!isEditing) {
@@ -127,35 +132,25 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
-    if (isEditing) setAutoSaveStatus('idle');
   };
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    if (isEditing) setAutoSaveStatus('idle');
   };
 
   const handleCategoryChange = (newCategoryId: string | null) => {
     setSelectedCategoryId(newCategoryId);
-    if (isEditing) setAutoSaveStatus('idle');
   };
 
   const performAutoSave = useCallback(
     async (taskId: string, currentTitle: string, currentContent: string, currentCatId: string | null) => {
       if (!onAutoSave) return;
 
-      setAutoSaveStatus('saving');
       startSaveTransition(async () => {
         try {
           await onAutoSave(taskId, currentTitle, currentContent, currentCatId);
-          setAutoSaveStatus('saved');
         } catch (error) {
-          console.error("Auto-save failed:", error);
-          setAutoSaveStatus('idle');
-        } finally {
-          setTimeout(() => {
-            setAutoSaveStatus(prev => prev === 'saved' ? 'idle' : prev);
-          }, 2000);
+          console.error("Auto-save failed silently:", error);
         }
       });
     },
@@ -166,17 +161,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
 
   useEffect(() => {
     if (isEditing && task && task.id) {
-      const originalTitle = task.title || '';
-      const originalContent = task.content || '';
-      const originalCategoryId = task.category_id || null;
-
-      const hasChanged = title !== originalTitle ||
-                         content !== originalContent ||
-                         selectedCategoryId !== originalCategoryId;
-
-      if (hasChanged) {
-        debouncedPerformAutoSave(task.id, title, content, selectedCategoryId);
-      }
+      debouncedPerformAutoSave(task.id, title, content, selectedCategoryId);
     }
   }, [title, content, selectedCategoryId, isEditing, task, debouncedPerformAutoSave]);
 
@@ -186,7 +171,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
       setTimeout(() => setShowError(false), 3000);
       return;
     }
-    setAutoSaveStatus('saving');
     onSave(title, content, selectedCategoryId);
     if (!isEditing) {
       try {
@@ -195,8 +179,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
         console.error("Failed to remove draft:", error);
       }
     }
-    setAutoSaveStatus('saved');
-    setTimeout(() => setAutoSaveStatus('idle'), 2000);
   };
 
   const handleDelete = () => {
@@ -271,27 +253,22 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
               onChange={(e) => handleTitleChange(e.target.value)}
               onKeyDown={handleTitleInputKeyDown}
               className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+              disabled={isSavingInProgress}
             />
           </CardTitle>
-          {isEditing && autoSaveStatus === 'saving' && (
-            <span className="text-xs text-gray-500 pr-2 animate-pulse">Saving...</span>
-          )}
-          {isEditing && autoSaveStatus === 'saved' && (
-            <span className="text-xs text-green-600 pr-2 flex items-center"><CheckCircle size={12} className="mr-1"/> Saved</span>
-          )}
-          <div className="flex gap-1 pr-2">
+          <div className={`flex gap-1 pr-2 ${isSavingInProgress ? 'opacity-50' : ''}`}>
             {isEditing && onDelete && (
-              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
+              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button" disabled={isSavingInProgress}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={handleClose} type="button">
+            <Button variant="ghost" size="icon" onClick={handleClose} type="button" disabled={isSavingInProgress}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
+        <CardContent className={`flex flex-col flex-grow overflow-hidden p-0 ${isSavingInProgress ? 'opacity-75 pointer-events-none' : ''}`}>
           <div className="flex-grow overflow-hidden px-6 pt-6">
             <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
           </div>
@@ -308,6 +285,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                         handleCategoryChange(value === "uncategorized" ? null : value);
                       }}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
+                      disabled={isSavingInProgress}
                   >
                       <option value="uncategorized">All Tasks (Uncategorized)</option>
                       {categories.map(cat => (
@@ -329,7 +307,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                     ))}
                     <span className="whitespace-nowrap">...</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0">
+                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0" disabled={isSavingInProgress}>
                     <Info size={14}/>
                 </Button>
               </div>
@@ -369,17 +347,17 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
               <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button">Cancel</Button>
+                <Button size="sm" variant="destructive" onClick={handleDelete} type="button" disabled={isSavingInProgress}>Delete</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button" disabled={isSavingInProgress}>Cancel</Button>
               </div>
             </div>
           )}
         </CardContent>
 
-        <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end">
+        <div className={`flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end ${isSavingInProgress ? 'opacity-50' : ''}`}>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} type="button">Cancel</Button>
-              <Button onClick={handleSave} type="button">{isEditing ? 'Update Task' : 'Save Task'}</Button>
+              <Button variant="outline" onClick={handleClose} type="button" disabled={isSavingInProgress}>Cancel</Button>
+              <Button onClick={handleSave} type="button" disabled={isSavingInProgress}>{isEditing ? 'Update Task' : 'Save Task'}</Button>
             </div>
         </div>
       </Card>
