@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Trash2, Clock, Folder } from 'lucide-react';
+import { X, Trash2, Clock, Folder, Keyboard, Info } from 'lucide-react';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 import type { Editor } from '@tiptap/core';
 import type { Category } from '@/app/actions';
@@ -43,10 +43,12 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAllKeystrokes, setShowAllKeystrokes] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = !!task;
+  const isMac = typeof window !== 'undefined' ? navigator.platform.toUpperCase().indexOf('MAC') >= 0 : false;
 
   useEffect(() => {
     if (isEditing && task) {
@@ -158,6 +160,28 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const formattedUpdatedAt = task?.updated_at ? formatTaskDate(task.updated_at) : '';
   const showUpdatedAt = isEditing && formattedUpdatedAt && formattedCreatedAt !== formattedUpdatedAt;
 
+  const commonKeystrokes = [
+    { cmd: isMac ? 'Cmd+B' : 'Ctrl+B', desc: 'Bold' },
+    { cmd: isMac ? 'Cmd+I' : 'Ctrl+I', desc: 'Italic' },
+    { cmd: isMac ? 'Cmd+U' : 'Ctrl+U', desc: 'Underline' },
+  ];
+
+  const allKeystrokes = [
+    ...commonKeystrokes,
+    { cmd: isMac ? 'Cmd+Shift+X' : 'Ctrl+Shift+X', desc: 'Strikethrough' },
+    { cmd: isMac ? 'Cmd+.' : 'Ctrl+.', desc: 'Bullet List' }, // TipTap often uses Cmd+Shift+8 or different combos
+    { cmd: isMac ? 'Cmd+Shift+7' : 'Ctrl+Shift+7', desc: 'Ordered List' }, // Same as above
+    { cmd: isMac ? 'Cmd+Z' : 'Ctrl+Z', desc: 'Undo' },
+    { cmd: isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y', desc: 'Redo' },
+    { cmd: 'Enter', desc: 'New Paragraph' },
+    { cmd: 'Shift+Enter', desc: 'Soft Break' },
+  ];
+
+  // Note: Actual TipTap keystrokes for lists might differ if not using default StarterKit or specific extensions.
+  // For example, default bullet list from StarterKit is often `*`, `-`, or `+` followed by space.
+  // And ordered list is `1.` followed by space.
+  // The Cmd+Shift+Number ones are common but not always default in bare TipTap.
+
   return (
     <div 
       onKeyDown={handleModalKeyDown} 
@@ -194,7 +218,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
           </div>
         </CardHeader>
         <CardContent className="px-6 pb-6 flex flex-col flex-grow overflow-y-auto">
-          <div className="flex-grow min-h-[150px] max-h-[calc(90vh-20rem)] overflow-y-auto mb-4 pr-1">
+          <div className="flex-grow min-h-[150px] max-h-[calc(90vh-24rem)] overflow-y-auto mb-4 pr-1">
              <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
           </div>
           
@@ -220,6 +244,33 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                     <Folder size={14} className="text-gray-500"/>
                 </div>
                 </div>
+            </div>
+
+            {/* Keystroke Hints Section */}
+            <div className="text-xs text-gray-500 mt-3 mb-2 py-2 border-t border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Keyboard size={14} />
+                    {commonKeystrokes.slice(0, 2).map(k => (
+                        <span key={k.cmd}><kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd> {k.desc}</span>
+                    ))}
+                    <span>...</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6">
+                    <Info size={14}/>
+                </Button>
+              </div>
+              {showAllKeystrokes && (
+                <div className="mt-2 space-y-1">
+                    {allKeystrokes.map(k => (
+                        <div key={k.cmd} className="flex justify-between">
+                            <span>{k.desc}</span>
+                            <kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd>
+                        </div>
+                    ))}
+                </div>
+              )}
+              <p className="text-right text-gray-400 text-[10px] mt-1">Keystrokes powered by <a href="https://tiptap.dev" target="_blank" rel="noopener noreferrer" className="underline">TipTap.dev</a></p>
             </div>
 
             <div className="text-xs flex items-center gap-4 flex-wrap">
