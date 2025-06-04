@@ -576,9 +576,15 @@ export default function Home() {
                 />
               </div>
               
-              {/* Fade gradient overlay - now sits exactly at the divider line above the footer */}
-              <div className="absolute left-0 right-0" style={{ bottom: '3.5rem', height: '2.5rem' }}>
-                <div className="w-full h-full bg-gradient-to-t from-white/95 to-transparent pointer-events-none" />
+              {/* Fade gradient overlay - precisely aligned with the footer's top border */}
+              <div 
+                className="absolute left-0 right-0 z-10 pointer-events-none"
+                style={{ 
+                  bottom: 'calc(0.5rem + 1rem + 1rem + 1px)', // Footer: pt-2 (0.5) + text-xs line (1) + pb-4 (1) + border (1px)
+                  height: '1.5rem' // Height of the fade gradient itself
+                }}
+              >
+                <div className="w-full h-full bg-gradient-to-t from-white to-transparent" />
               </div>
               
               {/* Fixed footer at bottom */}
