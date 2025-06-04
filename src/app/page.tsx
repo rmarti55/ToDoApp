@@ -349,7 +349,7 @@ export default function Home() {
 
   const totalTasks = tasks.length;
   const totalCategories = categories.length;
-
+  
   return (
     <main className="container mx-auto p-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">

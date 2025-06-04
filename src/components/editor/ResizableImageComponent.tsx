@@ -20,7 +20,7 @@ const SIZE_PRESETS = [
   { name: 'Small', percentage: 25, icon: '▫️' },
 ];
 
-export const ResizableImageComponent: React.FC<NodeViewProps> = ({ node, updateAttributes, selected }) => {
+export const ResizableImageComponent: React.FC<NodeViewProps> = ({ node, updateAttributes, selected, deleteNode }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
@@ -56,6 +56,13 @@ export const ResizableImageComponent: React.FC<NodeViewProps> = ({ node, updateA
       setAspectRatio(naturalRatio);
     }
   }, [aspectRatio]);
+
+  // Handle image deletion
+  const handleDeleteImage = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteNode();
+  }, [deleteNode]);
 
   // Handle preset size selection
   const handlePresetSize = useCallback((percentage: number) => {
@@ -204,6 +211,18 @@ export const ResizableImageComponent: React.FC<NodeViewProps> = ({ node, updateA
         }`}
         draggable={false}
       />
+      
+      {/* Delete button - shows on hover or when selected */}
+      {(selected || showSizeMenu) && (
+        <button
+          onClick={handleDeleteImage}
+          className="absolute top-0 right-0 transform translate-x-2 -translate-y-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold transition-colors z-20 shadow-lg"
+          contentEditable={false}
+          title="Delete image"
+        >
+          ×
+        </button>
+      )}
       
       {/* Resize handles - only show when selected and not showing size menu */}
       {selected && !showSizeMenu && !isResizing && aspectRatio && (
