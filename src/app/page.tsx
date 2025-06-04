@@ -3,8 +3,9 @@
 import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX } from 'lucide-react';
-import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, Category, DbTask } from '@/app/actions';
+import { Input } from '@/components/ui/input';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle } from 'lucide-react';
+import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, updateCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
 // Client-side Task interface now includes dates for display and passing to TaskCard
@@ -30,6 +31,10 @@ export default function Home() {
   // State for "Move to Category" modal
   const [movingTask, setMovingTask] = useState<ClientTask | null>(null);
   const [showMoveToCategoryModal, setShowMoveToCategoryModal] = useState(false);
+
+  // State for editing category name
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryNameInput, setEditingCategoryNameInput] = useState('');
 
   // Load categories on mount
   useEffect(() => {
@@ -59,8 +64,13 @@ export default function Home() {
       if (selectedCategory && !categories.find(c => c.id === selectedCategory.id)) {
         setSelectedCategory(null);
       }
+      // If the selected category is being edited, update its name in selectedCategory state
+      if (selectedCategory && editingCategoryId === selectedCategory.id) {
+        const updatedCat = categories.find(c => c.id === editingCategoryId);
+        if (updatedCat) setSelectedCategory(updatedCat);
+      }
     }
-  }, [categories, isLoadingCategories, initialCategoryApplied, selectedCategory]);
+  }, [categories, isLoadingCategories, initialCategoryApplied, selectedCategory, editingCategoryId]);
 
   // Load tasks when selectedCategory changes OR when initial category setup is complete and categories are loaded
   useEffect(() => {
@@ -91,6 +101,7 @@ export default function Home() {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
         setShowCategoryDropdown(false);
         setShowNewCategoryInput(false);
+        setEditingCategoryId(null); // Cancel category edit on outside click
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -167,33 +178,32 @@ export default function Home() {
   };
 
   const handleCategorySelect = (cat: Category | null) => {
+    if (editingCategoryId) return; // Prevent selection while editing a category name
     setSelectedCategory(cat);
     setShowCategoryDropdown(false);
     setShowNewCategoryInput(false);
-    // initialCategoryApplied is already true, so this selection will be respected
+    setEditingCategoryId(null); // Cancel any active edit
   };
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
-    // Optimistic UI update can be added here if desired
+    setEditingCategoryId(null); // Ensure not in edit mode
     startTransition(async () => {
       const newCatServer = await createCategory({ name: newCategoryName.trim() });
       if (newCatServer) {
-        // Update categories list with the new category from server ensuring it has id and created_at
         setCategories(prev => [...prev, newCatServer].sort((a,b) => a.name.localeCompare(b.name)));
-        setSelectedCategory(newCatServer); // Select the newly created category
+        setSelectedCategory(newCatServer);
         setShowNewCategoryInput(false);
         setNewCategoryName('');
-        setShowCategoryDropdown(false); // Close the main dropdown as well
+        // setShowCategoryDropdown(false); // Keep dropdown open to see new category, select it
       } else {
-        // Handle error, e.g., show a toast notification
         console.error("Failed to create category on server. Please check Vercel function logs for specific Supabase errors from 'actions.ts'.");
       }
     });
   };
   
   const openMoveToCategoryModal = (task: ClientTask, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent card click from opening edit modal
+    event.stopPropagation();
     setMovingTask(task);
     setShowMoveToCategoryModal(true);
   };
@@ -242,6 +252,50 @@ export default function Home() {
     });
   };
 
+  const handleStartEditCategoryName = (cat: Category, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent category selection
+    setEditingCategoryId(cat.id);
+    setEditingCategoryNameInput(cat.name);
+    setShowNewCategoryInput(false); // Close new category input if open
+  };
+
+  const handleCancelEditCategoryName = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    setEditingCategoryId(null);
+    setEditingCategoryNameInput('');
+  };
+
+  const handleSaveCategoryName = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    if (!editingCategoryId || !editingCategoryNameInput.trim()) {
+      // Optionally, add user feedback for empty name
+      handleCancelEditCategoryName();
+      return;
+    }
+    const originalCategory = categories.find(c => c.id === editingCategoryId);
+    if (originalCategory && originalCategory.name === editingCategoryNameInput.trim()) {
+        handleCancelEditCategoryName(); // No change, just cancel edit mode
+        return;
+    }
+
+    startTransition(async () => {
+      const updatedCat = await updateCategory(editingCategoryId, { name: editingCategoryNameInput.trim() });
+      if (updatedCat) {
+        setCategories(prev => 
+          prev.map(c => c.id === editingCategoryId ? updatedCat : c).sort((a,b) => a.name.localeCompare(b.name))
+        );
+        if (selectedCategory?.id === editingCategoryId) {
+          setSelectedCategory(updatedCat);
+        }
+        setEditingCategoryId(null);
+        setEditingCategoryNameInput('');
+      } else {
+        console.error("Failed to update category name on server.");
+        // Optionally, provide feedback to the user that save failed
+      }
+    });
+  };
+
   const totalTasks = tasks.length;
   const totalCategories = categories.length;
 
@@ -251,10 +305,17 @@ export default function Home() {
         <div className="relative" ref={categoryDropdownRef}>
           <button
             className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-base sm:text-lg font-semibold w-full sm:min-w-[200px] md:min-w-[250px] justify-between"
-            onClick={() => setShowCategoryDropdown(v => !v)}
+            onClick={() => {
+              if (editingCategoryId) return; // Prevent closing dropdown if an item input is active
+              setShowCategoryDropdown(v => !v);
+              if (showCategoryDropdown) { // If was open, and now closing, cancel edits
+                setEditingCategoryId(null);
+                setShowNewCategoryInput(false);
+              }
+            }}
             aria-haspopup="listbox"
             aria-expanded={showCategoryDropdown}
-            disabled={isLoadingCategories || isPending}
+            disabled={isLoadingCategories || (isPending && !editingCategoryId)}
           >
             <div className="flex items-center gap-2 overflow-hidden">
                 <FolderPlus className="w-5 h-5 text-gray-500 flex-shrink-0" />
@@ -263,7 +324,7 @@ export default function Home() {
                 </span>
             </div>
             <div className="flex items-center flex-shrink-0">
-                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {(isPending && !editingCategoryId) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                 <span className="text-xs text-gray-400 mr-1">({totalCategories})</span>
                 <ChevronDown className="w-4 h-4" />
             </div>
@@ -272,7 +333,7 @@ export default function Home() {
             <div className="absolute left-0 mt-2 w-full sm:w-72 md:w-80 bg-white border rounded shadow-lg z-50">
               <ul className="max-h-60 overflow-y-auto" role="listbox">
                 <li 
-                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${!selectedCategory ? 'bg-gray-100 font-bold' : ''}`}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${!selectedCategory && !editingCategoryId ? 'bg-gray-100 font-bold' : ''} ${editingCategoryId ? 'opacity-50 cursor-not-allowed': ''}`}
                     onClick={() => handleCategorySelect(null)}
                     role="option"
                     aria-selected={!selectedCategory}
@@ -282,38 +343,75 @@ export default function Home() {
                 {categories.map(cat => (
                   <li
                     key={cat.id}
-                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${selectedCategory?.id === cat.id ? 'bg-gray-100 font-bold' : ''}`}
-                    onClick={() => handleCategorySelect(cat)}
+                    className={`flex items-center justify-between px-4 py-2 group ${editingCategoryId === cat.id ? 'bg-blue-50' : (selectedCategory?.id === cat.id && !editingCategoryId ? 'bg-gray-100 font-bold' : 'hover:bg-gray-100')} ${editingCategoryId && editingCategoryId !== cat.id ? 'opacity-50 cursor-not-allowed': 'cursor-pointer'}`}
+                    onClick={() => editingCategoryId !== cat.id ? handleCategorySelect(cat) : undefined}
                     role="option"
                     aria-selected={selectedCategory?.id === cat.id}
                   >
-                    {cat.name} 
+                    {editingCategoryId === cat.id ? (
+                      <div className="flex-grow flex items-center gap-1">
+                        <Input 
+                          type="text" 
+                          value={editingCategoryNameInput}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingCategoryNameInput(e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                            if (e.key === 'Enter') handleSaveCategoryName();
+                            if (e.key === 'Escape') handleCancelEditCategoryName();
+                          }}
+                          className="h-7 text-sm px-1 flex-grow"
+                          autoFocus
+                          onClick={(e: React.MouseEvent<HTMLInputElement>) => e.stopPropagation()} // Prevent li click
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={handleSaveCategoryName} disabled={isPending || !editingCategoryNameInput.trim()}> <Check size={16}/> </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700" onClick={handleCancelEditCategoryName} disabled={isPending}> <XCircle size={16}/> </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="flex-grow truncate">{cat.name}</span>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={`h-7 w-7 text-gray-400 group-hover:text-gray-600 ${editingCategoryId ? 'invisible': ''}`}
+                            onClick={(e) => handleStartEditCategoryName(cat, e)}
+                            disabled={isPending || !!editingCategoryId}
+                        >
+                            <Edit3 size={14}/>
+                        </Button>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
-              {showNewCategoryInput ? (
-                <div className="flex items-center gap-2 p-2 border-t bg-gray-50">
-                  <input
-                    className="flex-1 border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="New category name"
-                    value={newCategoryName}
-                    onChange={e => setNewCategoryName(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleCreateCategory();
-                      if (e.key === 'Escape') { setShowNewCategoryInput(false); setNewCategoryName(''); }
+              <div className={`${editingCategoryId ? 'opacity-50 cursor-not-allowed': ''}`}> 
+                {showNewCategoryInput ? (
+                  <div className="flex items-center gap-2 p-2 border-t bg-gray-50">
+                    <input
+                      className="flex-1 border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="New category name"
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleCreateCategory();
+                        if (e.key === 'Escape') { setShowNewCategoryInput(false); setNewCategoryName(''); }
+                      }}
+                      autoFocus
+                      disabled={!!editingCategoryId}
+                    />
+                    <Button size="sm" onClick={handleCreateCategory} disabled={isPending || !newCategoryName.trim() || !!editingCategoryId}>Add</Button>
+                  </div>
+                ) : (
+                  <button
+                    className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t flex items-center gap-2"
+                    onClick={() => { 
+                        if (editingCategoryId) return;
+                        setShowNewCategoryInput(true);
                     }}
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={handleCreateCategory} disabled={isPending || !newCategoryName.trim()}>Add</Button>
-                </div>
-              ) : (
-                <button
-                  className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t flex items-center gap-2"
-                  onClick={() => setShowNewCategoryInput(true)}
-                >
-                  <Plus size={16}/> Create new category
-                </button>
-              )}
+                    disabled={!!editingCategoryId}
+                  >
+                    <Plus size={16}/> Create new category
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

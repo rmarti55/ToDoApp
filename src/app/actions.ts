@@ -64,6 +64,26 @@ export async function createCategory(categoryData: CategoryInput): Promise<Categ
   return data as Category;
 }
 
+export async function updateCategory(id: string, categoryData: Partial<CategoryInput>): Promise<Category | null> {
+  if (!categoryData.name || categoryData.name.trim() === "") {
+    console.error('Error updating category: New name cannot be empty.');
+    return null;
+  }
+  const { data, error } = await supabase
+    .from('categories')
+    .update({ name: categoryData.name.trim() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating category:', error);
+    return null;
+  }
+  revalidatePath('/');
+  return data as Category;
+}
+
 export async function getTasksByCategory(category_id: string | null): Promise<DbTask[]> {
   let query = supabase
     .from('tasks')
