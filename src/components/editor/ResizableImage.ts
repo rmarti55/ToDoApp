@@ -17,6 +17,8 @@ export const ResizableImage = Node.create({
 
   atom: true,
 
+  draggable: false,
+
   addAttributes() {
     return {
       src: {
