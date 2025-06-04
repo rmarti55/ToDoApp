@@ -286,8 +286,8 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
               <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
             </div>
             
-            <div className="flex-shrink-0 pt-3 pb-3 border-t bg-gray-50 px-6 mt-auto">
-              <div className="mb-3">
+            <div className="flex-shrink-0 pt-2 pb-2 border-t bg-gray-50 px-6 mt-auto">
+              <div className="mb-2">
                   <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <div className="relative">
                     <select 
@@ -310,7 +310,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                   </div>
               </div>
 
-              <div className="text-xs text-gray-500 mb-2 py-2 border-t">
+              <div className="text-xs text-gray-500 mb-1 py-1 border-t">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">
                       <Keyboard size={14} />
@@ -351,7 +351,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
 
             {showDeleteConfirm && (
-              <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
+              <div className="px-6 pt-2 pb-2 bg-red-50 border-t flex-shrink-0">
                 <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
