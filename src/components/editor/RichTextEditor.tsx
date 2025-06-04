@@ -230,9 +230,7 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
         editor={editor} 
         className="bg-white flex-grow overflow-y-auto 
                    [&_.ProseMirror]:min-h-full 
-                   [&_.ProseMirror]:h-full 
                    [&_.ProseMirror]:p-4 
-                   [&_.ProseMirror]:pb-8
                    [&_.ProseMirror]:focus:outline-none 
                    [&_.ProseMirror_ul[data-type=taskList]]:list-none 
                    [&_.ProseMirror_ul[data-type=taskList]]:p-0 
