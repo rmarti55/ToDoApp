@@ -186,10 +186,10 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
     <div 
       onKeyDown={handleModalKeyDown} 
       tabIndex={-1} 
-      className="relative z-50 w-full md:w-3/4 p-4 md:p-0 flex flex-col max-h-[90vh]"
+      className="relative z-50 w-full md:w-3/4 p-4 md:p-0 flex flex-col h-[90vh] max-h-[750px] min-h-[600px] overflow-hidden shadow-2xl rounded-lg"
     >
-      <Card className="w-full mx-auto shadow-xl bg-white flex flex-col flex-grow overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0">
+      <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0 border-b">
           <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
             <Input
               ref={titleInputRef}
@@ -197,18 +197,12 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={handleTitleInputKeyDown}
-              className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0"
+              className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </CardTitle>
-          <div className="flex gap-1">
+          <div className="flex gap-1 pr-2">
             {isEditing && onDelete && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-500 hover:text-red-700"
-                type="button"
-              >
+              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
@@ -217,32 +211,33 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-6 pb-0 flex flex-col flex-grow overflow-hidden">
-          <div className="flex-grow overflow-y-auto min-h-[150px]">
-             <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
+
+        <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
+          <div className="flex-grow overflow-hidden px-6 pt-6">
+            <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
           </div>
           
-          <div className="pt-3 pb-3 border-t mt-2 flex-shrink-0 bg-gray-50 -mx-6 px-6">
+          <div className="flex-shrink-0 pt-3 pb-3 border-t bg-gray-50 px-6 mt-auto">
             <div className="mb-3">
                 <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                 <div className="relative">
-                <select 
-                    id="category-select"
-                    value={selectedCategoryId || "uncategorized"} 
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                    const value = e.target.value;
-                    setSelectedCategoryId(value === "uncategorized" ? null : value);
-                    }}
-                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
-                >
-                    <option value="uncategorized">All Tasks (Uncategorized)</option>
-                    {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <Folder size={14} className="text-gray-500"/>
-                </div>
+                  <select 
+                      id="category-select"
+                      value={selectedCategoryId || "uncategorized"} 
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const value = e.target.value;
+                        setSelectedCategoryId(value === "uncategorized" ? null : value);
+                      }}
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
+                  >
+                      <option value="uncategorized">All Tasks (Uncategorized)</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                      <Folder size={14} className="text-gray-500"/>
+                  </div>
                 </div>
             </div>
 
@@ -274,25 +269,25 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             
             <div className="text-xs text-gray-500 flex items-center gap-4 flex-wrap">
                 {formattedCreatedAt && (
-                <span className="text-gray-500 flex items-center gap-1">
-                    <Clock size={12} /> Created: {formattedCreatedAt}
-                </span>
+                  <span className="text-gray-500 flex items-center gap-1">
+                      <Clock size={12} /> Created: {formattedCreatedAt}
+                  </span>
                 )}
                 {showUpdatedAt && (
-                <span className="text-black flex items-center gap-1">
-                    <Clock size={12} /> Updated: {formattedUpdatedAt}
-                </span>
+                  <span className="text-black flex items-center gap-1">
+                      <Clock size={12} /> Updated: {formattedUpdatedAt}
+                  </span>
                 )}
             </div>
           </div>
 
           {showError && (
-            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex-shrink-0">
+            <div className="px-6 pt-2 pb-2 bg-red-100 border-t text-red-700 text-sm flex-shrink-0">
               Please add a title or some content before saving.
             </div>
           )}
           {showDeleteConfirm && (
-            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded flex-shrink-0">
+            <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
               <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
               <div className="flex gap-2">
                 <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
@@ -302,14 +297,10 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
           )}
         </CardContent>
 
-        <div className="px-6 py-4 border-t flex justify-end flex-shrink-0 bg-gray-50">
+        <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end">
             <div className="flex gap-2">
-            <Button variant="outline" onClick={handleClose} type="button">
-                Cancel
-            </Button>
-            <Button onClick={handleSave} type="button">
-                {isEditing ? 'Update Task' : 'Save Task'}
-            </Button>
+              <Button variant="outline" onClick={handleClose} type="button">Cancel</Button>
+              <Button onClick={handleSave} type="button">{isEditing ? 'Update Task' : 'Save Task'}</Button>
             </div>
         </div>
       </Card>
