@@ -1,19 +1,14 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Plus, Clock, ChevronDown, FolderPlus } from 'lucide-react';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2 } from 'lucide-react';
 import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
 // Client-side Task interface now includes dates for display and passing to TaskCard
-interface ClientTask {
-  id: string;
-  title: string | null; 
-  content: string | null;
-  created_at: string; 
-  updated_at: string;
+interface ClientTask extends Omit<DbTask, 'category_id'> {
   category_id?: string | null;
 }
 
@@ -24,39 +19,56 @@ export default function Home() {
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [tasks, setTasks] = useState<ClientTask[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<ClientTask | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadCategories() {
+    async function loadInitialCategories() {
+      setIsLoadingCategories(true);
       const cats = await getCategories();
       setCategories(cats);
       if (cats.length > 0 && !selectedCategory) {
         setSelectedCategory(cats[0]);
       }
+      setIsLoadingCategories(false);
     }
-    loadCategories();
+    loadInitialCategories();
   }, []);
 
   useEffect(() => {
-    async function loadTasks() {
-      setIsLoading(true);
-      const fetchedTasks: DbTask[] = await getTasksByCategory(selectedCategory?.id || null);
-      // Map DbTask to ClientTask
-      setTasks(fetchedTasks.map(ft => ({ 
-        id: ft.id, 
-        title: ft.title, 
-        content: ft.content, 
-        created_at: ft.created_at,
-        updated_at: ft.updated_at,
-        category_id: ft.category_id || null,
-      })));
-      setIsLoading(false);
+    async function loadTasksForCategory() {
+      if (!selectedCategory && categories.length > 0) {
+        setSelectedCategory(categories[0]);
+        return;
+      }
+      if (selectedCategory || categories.length === 0) {
+        setIsLoadingTasks(true);
+        const fetchedTasks: DbTask[] = await getTasksByCategory(selectedCategory?.id || null);
+        setTasks(fetchedTasks.map(ft => ({ ...ft })));
+        setIsLoadingTasks(false);
+      }
     }
-    loadTasks();
-  }, [selectedCategory]);
+    if (!isLoadingCategories) {
+      loadTasksForCategory();
+    }
+  }, [selectedCategory, categories, isLoadingCategories]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+        setShowNewCategoryInput(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [categoryDropdownRef]);
 
   const handleSaveTask = (title: string, content: string) => {
     const newTaskData = {
@@ -67,8 +79,8 @@ export default function Home() {
     startTransition(() => {
       createTask(newTaskData).then(savedTaskDb => {
         if (savedTaskDb) {
-          const savedTaskClient: ClientTask = { ...savedTaskDb }; // Map DbTask to ClientTask
-          setTasks(prevTasks => [savedTaskClient, ...prevTasks].sort((a, b) => 
+          const savedTaskClient: ClientTask = { ...savedTaskDb };
+          setTasks(prevTasks => [savedTaskClient, ...prevTasks].sort((a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           ));
         }
@@ -85,8 +97,8 @@ export default function Home() {
     startTransition(() => {
       updateTask(id, updatedTaskData).then(updatedTaskResultDb => {
         if (updatedTaskResultDb) {
-          const updatedTaskResultClient: ClientTask = { ...updatedTaskResultDb }; // Map DbTask to ClientTask
-          setTasks(prevTasks => prevTasks.map(task => 
+          const updatedTaskResultClient: ClientTask = { ...updatedTaskResultDb };
+          setTasks(prevTasks => prevTasks.map(task =>
             task.id === id ? updatedTaskResultClient : task
           ));
         }
@@ -109,116 +121,147 @@ export default function Home() {
   };
 
   const closeModal = () => {
-    setIsCreating(false);
+    setIsCreatingTask(false);
     setEditingTask(null);
   };
 
-  const handleCategorySelect = (cat: Category) => {
+  const handleCategorySelect = (cat: Category | null) => {
     setSelectedCategory(cat);
     setShowCategoryDropdown(false);
+    setShowNewCategoryInput(false);
   };
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
-    const newCat = await createCategory({ name: newCategoryName.trim() });
-    if (newCat) {
-      setCategories(prev => [...prev, newCat]);
-      setSelectedCategory(newCat);
-      setShowNewCategoryInput(false);
-      setNewCategoryName('');
-    }
+    startTransition(async () => {
+      const newCat = await createCategory({ name: newCategoryName.trim() });
+      if (newCat) {
+        setCategories(prev => [...prev, newCat].sort((a,b) => a.name.localeCompare(b.name)));
+        setSelectedCategory(newCat);
+        setShowNewCategoryInput(false);
+        setNewCategoryName('');
+      }
+    });
   };
+
+  const totalTasks = tasks.length;
+  const totalCategories = categories.length;
 
   return (
     <main className="container mx-auto p-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-lg font-semibold"
-              onClick={() => setShowCategoryDropdown(v => !v)}
-              aria-haspopup="listbox"
-              aria-expanded={showCategoryDropdown}
-            >
-              <FolderPlus className="w-5 h-5 text-gray-500" />
-              {selectedCategory ? selectedCategory.name : 'No Category'}
-              <ChevronDown className="w-4 h-4 ml-1" />
-              <span className="ml-2 text-xs text-gray-400">({categories.length})</span>
-            </button>
-            {showCategoryDropdown && (
-              <div className="absolute left-0 mt-2 w-56 bg-white border rounded shadow-lg z-50">
-                <ul className="max-h-60 overflow-y-auto" role="listbox">
-                  {categories.map(cat => (
-                    <li
-                      key={cat.id}
-                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${selectedCategory?.id === cat.id ? 'bg-gray-100 font-bold' : ''}`}
-                      onClick={() => handleCategorySelect(cat)}
-                      role="option"
-                      aria-selected={selectedCategory?.id === cat.id}
-                    >
-                      {cat.name}
-                    </li>
-                  ))}
-                </ul>
-                {showNewCategoryInput ? (
-                  <div className="flex items-center gap-2 p-2 border-t">
-                    <input
-                      className="flex-1 border rounded px-2 py-1 text-sm"
-                      placeholder="New category name"
-                      value={newCategoryName}
-                      onChange={e => setNewCategoryName(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleCreateCategory();
-                        if (e.key === 'Escape') setShowNewCategoryInput(false);
-                      }}
-                      autoFocus
-                    />
-                    <Button size="sm" onClick={handleCreateCategory}>Add</Button>
-                  </div>
-                ) : (
-                  <button
-                    className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t"
-                    onClick={() => setShowNewCategoryInput(true)}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+        <div className="relative" ref={categoryDropdownRef}>
+          <button
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-base sm:text-lg font-semibold w-full sm:w-auto justify-between"
+            onClick={() => setShowCategoryDropdown(v => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={showCategoryDropdown}
+            disabled={isLoadingCategories || isPending}
+          >
+            <div className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                {selectedCategory ? selectedCategory.name : (isLoadingCategories ? 'Loading...' : 'All Tasks (Uncategorized)')}
+              </span>
+            </div>
+            <div className="flex items-center">
+              {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              <span className="text-xs text-gray-400 mr-1">({totalCategories})</span>
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </button>
+          {showCategoryDropdown && (
+            <div className="absolute left-0 mt-2 w-full sm:w-64 bg-white border rounded shadow-lg z-50">
+              <ul className="max-h-60 overflow-y-auto" role="listbox">
+                <li 
+                  className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${!selectedCategory ? 'bg-gray-100 font-bold' : ''}`}
+                  onClick={() => handleCategorySelect(null)}
+                  role="option"
+                  aria-selected={!selectedCategory}
+                >
+                  All Tasks (Uncategorized)
+                </li>
+                {categories.map(cat => (
+                  <li
+                    key={cat.id}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${selectedCategory?.id === cat.id ? 'bg-gray-100 font-bold' : ''}`}
+                    onClick={() => handleCategorySelect(cat)}
+                    role="option"
+                    aria-selected={selectedCategory?.id === cat.id}
                   >
-                    + Create new category
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <span className="text-gray-500 text-sm ml-2">{tasks.length} tasks</span>
+                    {cat.name}
+                  </li>
+                ))}
+              </ul>
+              {showNewCategoryInput ? (
+                <div className="flex items-center gap-2 p-2 border-t bg-gray-50">
+                  <input
+                    className="flex-1 border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="New category name"
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleCreateCategory();
+                      if (e.key === 'Escape') { setShowNewCategoryInput(false); setNewCategoryName(''); }
+                    }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={handleCreateCategory} disabled={isPending || !newCategoryName.trim()}>Add</Button>
+                </div>
+              ) : (
+                <button
+                  className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t flex items-center gap-2"
+                  onClick={() => setShowNewCategoryInput(true)}
+                >
+                  <Plus size={16}/> Create new category
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="text-gray-600 text-sm text-right sm:text-left">
+          {isLoadingTasks ? 'Loading tasks...' : `${totalTasks} task${totalTasks !== 1 ? 's' : ''}`}
         </div>
       </div>
 
-      {(isCreating || editingTask) && (
+      {(isCreatingTask || editingTask) && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <TaskCard
             task={editingTask}
             onClose={closeModal}
-            onSave={editingTask ? 
+            onSave={editingTask ?
               (title, content) => {
                 handleEditTask(editingTask.id, title, content);
                 closeModal();
-              } : 
+              } :
               (title, content) => {
                 handleSaveTask(title, content);
                 closeModal();
               }
             }
-            onDelete={editingTask ? 
+            onDelete={editingTask ?
               () => {
                 handleDeleteTask(editingTask.id);
                 closeModal();
-              } : 
+              } :
               undefined
             }
           />
         </div>
       )}
 
-      {isLoading ? (
-        <div className="col-span-full text-center py-12">
-          <p className="text-gray-500 text-lg">Loading tasks...</p>
+      {isLoadingTasks ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="border rounded-lg p-4 bg-white flex flex-col justify-between h-40 min-h-[10rem] animate-pulse">
+              <div className="w-3/4 h-6 bg-gray-200 rounded mb-2"></div>
+              <div className="w-full h-4 bg-gray-200 rounded mb-1"></div>
+              <div className="w-1/2 h-4 bg-gray-200 rounded mb-3"></div>
+              <div className="mt-auto pt-2 border-t border-gray-100">
+                <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,22 +289,23 @@ export default function Home() {
               </div>
             </div>
           ))}
-          {/* Add Task Card */}
           <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors min-h-[120px] h-40 max-h-40"
-            onClick={() => setIsCreating(true)}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors min-h-[120px] h-40 max-h-40"
+            onClick={() => setIsCreatingTask(true)}
             tabIndex={0}
             aria-label="Add new task"
             style={{ height: '10rem' }}
           >
-            <div className="w-full h-6 bg-gray-300 rounded mb-2 animate-pulse" />
-            <div className="w-2/3 h-4 bg-gray-200 rounded mb-1 animate-pulse" />
-            <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse" />
-            <span className="mt-4 text-gray-400 text-sm font-medium">Add new task…</span>
+            <Plus className="w-8 h-8 text-gray-400 mb-2" />
+            <span className="text-gray-500 text-sm font-medium">Add new task…</span>
           </div>
-          {tasks.length === 0 && !isCreating && !editingTask && (
+          
+          {tasks.length === 0 && !isCreatingTask && !editingTask && (
             <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No tasks yet. Click the card below to get started!</p>
+              <p className="text-gray-500 text-lg">
+                {selectedCategory ? `No tasks in ${selectedCategory.name}.` : 'No tasks yet.'}
+                {' '}Click the card above to get started!
+              </p>
             </div>
           )}
         </div>
