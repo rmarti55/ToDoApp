@@ -259,7 +259,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
       >
         <Card className="w-full mx-auto bg-white flex flex-col flex-grow overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0 border-b">
-            <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
+            <CardTitle className="text-xl font-bold flex-1 pl-6 py-2">
               <Input
                 ref={titleInputRef}
                 placeholder="Enter task title..."
