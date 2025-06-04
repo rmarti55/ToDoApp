@@ -231,7 +231,18 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
       </div>
       <EditorContent 
         editor={editor} 
-        className="bg-white flex-grow overflow-y-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:h-full [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none [&_.ProseMirror_ul[data-type=taskList]]:list-none [&_.ProseMirror_ul[data-type=taskList]]:p-0 [&_.ProseMirror_li[data-type=taskItem]]:flex [&_.ProseMirror_li[data-type=taskItem]]:items-center [&_.ProseMirror_li[data-type=taskItem]]:gap-2 [&_li[data-type=taskItem][data-checked=true]>div]:line-through [&_li[data-type=taskItem][data-checked=true]>div]:text-gray-500"
+        className="bg-white flex-grow overflow-y-auto 
+                   [&_.ProseMirror]:min-h-full 
+                   [&_.ProseMirror]:h-full 
+                   [&_.ProseMirror]:p-4 
+                   [&_.ProseMirror]:focus:outline-none 
+                   [&_.ProseMirror_ul[data-type=taskList]]:list-none 
+                   [&_.ProseMirror_ul[data-type=taskList]]:p-0 
+                   [&_.ProseMirror_li[data-type=taskItem]]:flex 
+                   [&_.ProseMirror_li[data-type=taskItem]]:items-center 
+                   [&_.ProseMirror_li[data-type=taskItem]]:gap-2 
+                   [&_li[data-type=taskItem][data-checked=true]>div]:line-through 
+                   [&_li[data-type=taskItem][data-checked=true]>div]:text-gray-400" 
       />
     </div>
   );

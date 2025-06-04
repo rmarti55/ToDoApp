@@ -267,19 +267,27 @@ export default function Home() {
 
   const handleSaveCategoryName = (event?: React.MouseEvent) => {
     event?.stopPropagation();
-    if (!editingCategoryId || !editingCategoryNameInput.trim()) {
-      // Optionally, add user feedback for empty name
+    const newName = editingCategoryNameInput.trim();
+    if (!editingCategoryId || !newName) {
       handleCancelEditCategoryName();
       return;
     }
+
     const originalCategory = categories.find(c => c.id === editingCategoryId);
-    if (originalCategory && originalCategory.name === editingCategoryNameInput.trim()) {
-        handleCancelEditCategoryName(); // No change, just cancel edit mode
+    if (originalCategory && originalCategory.name === newName) {
+        handleCancelEditCategoryName();
         return;
     }
 
+    // Client-side check for duplicate category name (case-insensitive)
+    const otherCategories = categories.filter(c => c.id !== editingCategoryId);
+    if (otherCategories.some(c => c.name.toLowerCase() === newName.toLowerCase())) {
+        alert(`A category named "${newName}" already exists. Please choose a different name.`);
+        return; // Keep input active for user to correct
+    }
+
     startTransition(async () => {
-      const updatedCat = await updateCategory(editingCategoryId, { name: editingCategoryNameInput.trim() });
+      const updatedCat = await updateCategory(editingCategoryId, { name: newName });
       if (updatedCat) {
         setCategories(prev => 
           prev.map(c => c.id === editingCategoryId ? updatedCat : c).sort((a,b) => a.name.localeCompare(b.name))
