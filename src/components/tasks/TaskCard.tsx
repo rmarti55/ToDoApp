@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Trash2, Clock, Folder, Keyboard, Info } from 'lucide-react';
+import { X, Trash2, Clock, Folder, Keyboard, Info, CheckCircle } from 'lucide-react';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 import type { Editor } from '@tiptap/core';
 import type { Category } from '@/app/actions';
@@ -37,6 +37,21 @@ interface TaskCardProps {
   onDelete?: () => void;
 }
 
+// Debounce utility function
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = (...args: Parameters<F>) => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
+
+  return debounced as (...args: Parameters<F>) => void;
+}
+
 export function TaskCard({ task, categories, currentCategoryId, onClose, onSave, onDelete }: TaskCardProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -46,6 +61,8 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const [showAllKeystrokes, setShowAllKeystrokes] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [isSaving, startSaveTransition] = useTransition();
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const isEditing = !!task;
   const isMac = typeof window !== 'undefined' ? navigator.platform.toUpperCase().indexOf('MAC') >= 0 : false;
@@ -55,6 +72,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
       setTitle(task.title || '');
       setContent(task.content || '');
       setSelectedCategoryId(task.category_id || null);
+      setAutoSaveStatus('idle');
     } else {
       try {
         const draftString = localStorage.getItem(NEW_TASK_DRAFT_KEY);
@@ -108,6 +126,17 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
+    if (isEditing) setAutoSaveStatus('idle');
+  };
+
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (isEditing) setAutoSaveStatus('idle');
+  };
+
+  const handleCategoryChange = (newCategoryId: string | null) => {
+    setSelectedCategoryId(newCategoryId);
+    if (isEditing) setAutoSaveStatus('idle');
   };
 
   const handleSave = () => {
@@ -116,6 +145,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
       setTimeout(() => setShowError(false), 3000);
       return;
     }
+    setAutoSaveStatus('saving');
     onSave(title, content, selectedCategoryId);
     if (!isEditing) {
       try {
@@ -124,6 +154,8 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
         console.error("Failed to remove draft:", error);
       }
     }
+    setAutoSaveStatus('saved');
+    setTimeout(() => setAutoSaveStatus('idle'), 2000);
   };
 
   const handleDelete = () => {
@@ -182,6 +214,52 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   // And ordered list is `1.` followed by space.
   // The Cmd+Shift+Number ones are common but not always default in bare TipTap.
 
+  // Debounced auto-save function for existing tasks
+  const debouncedAutoSave = useCallback(
+    debounce((newTitle: string, newContent: string, newCategoryId: string | null) => {
+      if (!task?.id) return; // Should not happen if isEditing is true
+      
+      // Avoid saving if nothing substantial changed from the loaded task state
+      // This check is a bit simplistic, might need refinement if default values are complex
+      if (newTitle === (task.title || '') && 
+          newContent === (task.content || '') && 
+          newCategoryId === (task.category_id || null)) {
+        // If content matches original loaded task, consider it saved or no change needed.
+        // setAutoSaveStatus('idle'); // or 'saved' if we want to be explicit about it.
+        return;
+      }
+
+      if (!(newTitle.trim() || newContent.trim())) {
+        // Optionally, handle case where auto-save might clear a task - for now, let it proceed
+        // Or add a specific status like 'error-empty'
+      }
+
+      setAutoSaveStatus('saving');
+      startSaveTransition(() => {
+        onSave(newTitle, newContent, newCategoryId);
+        // The onSave is expected to be an async call that updates the parent state.
+        // Parent should then re-render TaskCard with updated task prop, triggering useEffect.
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 2000); // Hide status after a bit
+      });
+    }, 1500), // 1.5 seconds debounce
+    [task, onSave, startSaveTransition] // task dependency is important here for the closure over task details
+  );
+
+  // useEffect for triggering auto-save on changes when editing an existing task
+  useEffect(() => {
+    if (isEditing && task) {
+      // Check if current state is different from originally loaded task state
+      const hasChanged = title !== (task.title || '') || 
+                         content !== (task.content || '') || 
+                         selectedCategoryId !== (task.category_id || null);
+
+      if (hasChanged) {
+        debouncedAutoSave(title, content, selectedCategoryId);
+      }
+    }
+  }, [title, content, selectedCategoryId, isEditing, task, debouncedAutoSave]);
+
   return (
     <div 
       onKeyDown={handleModalKeyDown} 
@@ -195,11 +273,17 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
               ref={titleInputRef}
               placeholder="Enter task title..."
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
               onKeyDown={handleTitleInputKeyDown}
               className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </CardTitle>
+          {isEditing && autoSaveStatus === 'saving' && (
+            <span className="text-xs text-gray-500 pr-2 animate-pulse">Saving...</span>
+          )}
+          {isEditing && autoSaveStatus === 'saved' && (
+            <span className="text-xs text-green-600 pr-2 flex items-center"><CheckCircle size={12} className="mr-1"/> Saved</span>
+          )}
           <div className="flex gap-1 pr-2">
             {isEditing && onDelete && (
               <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
@@ -226,7 +310,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                       value={selectedCategoryId || "uncategorized"} 
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const value = e.target.value;
-                        setSelectedCategoryId(value === "uncategorized" ? null : value);
+                        handleCategoryChange(value === "uncategorized" ? null : value);
                       }}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
                   >
