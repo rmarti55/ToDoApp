@@ -57,7 +57,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAllKeystrokes, setShowAllKeystrokes] = useState(false);
   const editorRef = useRef<Editor | null>(null);
@@ -177,22 +176,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
     }
   }, [title, content, selectedCategoryId, isEditing, task, debouncedPerformAutoSave]);
 
-  const handleSave = () => {
-    if (!(title.trim() || content.trim())) {
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
-      return;
-    }
-    onSave(title, content, selectedCategoryId);
-    if (!isEditing) {
-      try {
-        localStorage.removeItem(NEW_TASK_DRAFT_KEY);
-      } catch (error) {
-        console.error("Failed to remove draft:", error);
-      }
-    }
-  };
-
   const handleDelete = () => {
     if (onDelete) {
       onDelete();
@@ -200,10 +183,24 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   };
 
   const handleClose = () => {
-    if (!isEditing && (title.trim() || content.trim())) {
-      saveDraft();
+    // Auto-save logic for both new and existing tasks
+    if (title.trim() || content.trim()) {
+      if (isEditing) {
+        // For existing tasks, just close - auto-save already handled it
+        onClose();
+      } else {
+        // For new tasks, save before closing
+        onSave(title, content, selectedCategoryId);
+        try {
+          localStorage.removeItem(NEW_TASK_DRAFT_KEY);
+        } catch (error) {
+          console.error("Failed to remove draft:", error);
+        }
+      }
+    } else {
+      // No content, just close
+      onClose();
     }
-    onClose();
   };
 
   const handleModalKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -219,7 +216,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
     }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      handleSave();
+      handleClose();
     }
   };
   
@@ -348,11 +345,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
           </div>
 
-          {showError && (
-            <div className="px-6 pt-2 pb-2 bg-red-100 border-t text-red-700 text-sm flex-shrink-0">
-              Please add a title or some content before saving.
-            </div>
-          )}
           {showDeleteConfirm && (
             <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
               <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
@@ -363,13 +355,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
           )}
         </CardContent>
-
-        <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end">
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} type="button">Cancel</Button>
-              <Button onClick={handleSave} type="button" disabled={isSavingInProgress}>{isEditing ? 'Update Task' : 'Save Task'}</Button>
-            </div>
-        </div>
       </Card>
     </div>
   );
