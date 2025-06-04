@@ -315,22 +315,33 @@ export default function Home() {
       startTransition(async () => {
         try {
           const updatedTaskResultDb = await updateTask(taskId, taskDataToUpdate);
+          
           if (updatedTaskResultDb) {
-            const updatedTaskClient: ClientTask = { ...updatedTaskResultDb, category_id: updatedTaskResultDb.category_id || null };
-            
-            setTasks(prevTasks => 
-              prevTasks.map(t => (t.id === taskId ? updatedTaskClient : t))
-                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            );
-            
-            setEditingTask(prevEditingTask => 
-              prevEditingTask && prevEditingTask.id === taskId ? updatedTaskClient : prevEditingTask
-            );
+            setEditingTask(prevEditingTask => {
+              if (!prevEditingTask || prevEditingTask.id !== taskId) {
+                return prevEditingTask; 
+              }
+
+              // Corrected merge logic:
+              const newClientTask: ClientTask = {
+                ...prevEditingTask,     // 1. Base state from before this auto-save.
+                ...taskDataToUpdate,    // 2. User's current input for this cycle.
+                ...updatedTaskResultDb, // 3. Authoritative fields returned by the server.
+              };
+              
+              // Update the main tasks list
+              setTasks(prevTasks => 
+                prevTasks.map(t => (t.id === taskId ? newClientTask : t))
+                         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              );
+              
+              return newClientTask; // Update editingTask state
+            });
           }
-          resolve(); // Resolve the promise after state updates
+          resolve();
         } catch (error) {
           console.error("Auto-save failed for task:", taskId, error);
-          reject(error); // Reject the promise if updateTask fails
+          reject(error); 
         }
       });
     });
