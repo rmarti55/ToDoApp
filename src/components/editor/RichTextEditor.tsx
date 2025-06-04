@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import Image from '@tiptap/extension-image';
 import { Button } from '@/components/ui/button';
 import { useEffect } from 'react';
 import {
@@ -31,6 +32,10 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
       TaskList,
       TaskItem.configure({
         nested: true,
+      }),
+      Image.configure({
+        // inline: true,
+        // allowBase64: true,
       }),
     ],
     content: '',
