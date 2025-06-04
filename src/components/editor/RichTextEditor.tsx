@@ -85,6 +85,38 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
         return false;
       },
       transformPastedHTML(html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
+
+        let listItemsContent: string[] = [];
+        let isTransformableList = paragraphs.length > 0;
+
+        for (let i = 0; i < paragraphs.length; i++) {
+          const p = paragraphs[i];
+          const text = p.textContent || '';
+          const match = text.match(/^(\d+)\.\s+(.*)/);
+          
+          if (match) {
+            listItemsContent.push(match[2]);
+          } else {
+            isTransformableList = false;
+            break;
+          }
+        }
+
+        if (isTransformableList && listItemsContent.length > 0) {
+          let newHtml = '<ol>';
+          for (const itemContent of listItemsContent) {
+            newHtml += `<li><p>${itemContent}</p></li>`; 
+          }
+          newHtml += '</ol>';
+          
+          if (paragraphs.length === listItemsContent.length) {
+            return newHtml;
+          }
+        }
+        
         return html;
       },
     },
