@@ -42,8 +42,10 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
         },
       }),
       Image.configure({
-        // inline: true,
-        // allowBase64: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded-md border',
+        },
       }),
     ],
     content: '',
@@ -53,6 +55,34 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none p-4',
+      },
+      handleDrop: function(view, event, slice, moved) {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+          const file = event.dataTransfer.files[0]; 
+          if (file.type.startsWith("image/")) {
+            event.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const src = e.target?.result as string;
+              if (src) {
+                const { schema } = view.state;
+                const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                if (coordinates) {
+                    const node = schema.nodes.image.create({ src });
+                    const transaction = view.state.tr.insert(coordinates.pos, node);
+                    view.dispatch(transaction);
+                } else {
+                    const node = schema.nodes.image.create({ src });
+                    const transaction = view.state.tr.insert(view.state.selection.from, node);
+                    view.dispatch(transaction);
+                }
+              }
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+        }
+        return false;
       },
       transformPastedHTML(html) {
         return html;
@@ -82,8 +112,8 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="border-b bg-gray-50 p-2 flex gap-1 flex-wrap">
+    <div className="border rounded-lg overflow-hidden flex flex-col h-full">
+      <div className="border-b bg-gray-50 p-2 flex gap-1 flex-wrap flex-shrink-0">
         <Button
           type="button"
           variant="ghost"
@@ -169,7 +199,7 @@ export function RichTextEditor({ content, onChange, editorInstanceRef }: RichTex
       </div>
       <EditorContent 
         editor={editor} 
-        className="bg-white [&_.ProseMirror]:min-h-[200px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none [&_.ProseMirror_ul[data-type=taskList]]:list-none [&_.ProseMirror_ul[data-type=taskList]]:p-0 [&_.ProseMirror_li[data-type=taskItem]]:flex [&_.ProseMirror_li[data-type=taskItem]]:items-center [&_.ProseMirror_li[data-type=taskItem]]:gap-2"
+        className="bg-white flex-grow overflow-y-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:h-full [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none [&_.ProseMirror_ul[data-type=taskList]]:list-none [&_.ProseMirror_ul[data-type=taskList]]:p-0 [&_.ProseMirror_li[data-type=taskItem]]:flex [&_.ProseMirror_li[data-type=taskItem]]:items-center [&_.ProseMirror_li[data-type=taskItem]]:gap-2"
       />
     </div>
   );

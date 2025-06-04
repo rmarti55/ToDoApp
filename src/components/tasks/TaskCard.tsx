@@ -217,12 +217,12 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-6 pb-6 flex flex-col flex-grow overflow-y-auto">
-          <div className="flex-grow min-h-[150px] max-h-[calc(90vh-24rem)] overflow-y-auto mb-4 pr-1">
+        <CardContent className="px-6 pb-0 flex flex-col flex-grow overflow-hidden">
+          <div className="flex-grow overflow-y-auto min-h-[150px]">
              <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
           </div>
           
-          <div className="mt-auto flex-shrink-0">
+          <div className="pt-3 pb-3 border-t mt-2 flex-shrink-0 bg-gray-50 -mx-6 px-6">
             <div className="mb-3">
                 <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                 <div className="relative">
@@ -246,34 +246,33 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                 </div>
             </div>
 
-            {/* Keystroke Hints Section */}
-            <div className="text-xs text-gray-500 mt-3 mb-2 py-2 border-t border-b">
+            <div className="text-xs text-gray-500 mb-2 py-2 border-t">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Keyboard size={14} />
                     {commonKeystrokes.slice(0, 2).map(k => (
-                        <span key={k.cmd}><kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd> {k.desc}</span>
+                        <span key={k.cmd} className="whitespace-nowrap"><kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd> {k.desc}</span>
                     ))}
-                    <span>...</span>
+                    <span className="whitespace-nowrap">...</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6">
+                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0">
                     <Info size={14}/>
                 </Button>
               </div>
               {showAllKeystrokes && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-2 space-y-1 text-[11px]">
                     {allKeystrokes.map(k => (
-                        <div key={k.cmd} className="flex justify-between">
-                            <span>{k.desc}</span>
-                            <kbd className="px-1.5 py-0.5 border bg-gray-100 rounded text-xs">{k.cmd}</kbd>
+                        <div key={k.cmd} className="flex justify-between items-center">
+                            <span className="text-gray-600">{k.desc}</span>
+                            <kbd className="px-1.5 py-0.5 border bg-white rounded text-xs shadow-sm">{k.cmd}</kbd>
                         </div>
                     ))}
                 </div>
               )}
-              <p className="text-right text-gray-400 text-[10px] mt-1">Keystrokes powered by <a href="https://tiptap.dev" target="_blank" rel="noopener noreferrer" className="underline">TipTap.dev</a></p>
+              <p className="text-right text-gray-400 text-[10px] mt-1">Keystrokes powered by <a href="https://tiptap.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">TipTap.dev</a></p>
             </div>
-
-            <div className="text-xs flex items-center gap-4 flex-wrap">
+            
+            <div className="text-xs text-gray-500 flex items-center gap-4 flex-wrap">
                 {formattedCreatedAt && (
                 <span className="text-gray-500 flex items-center gap-1">
                     <Clock size={12} /> Created: {formattedCreatedAt}
@@ -285,49 +284,34 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                 </span>
                 )}
             </div>
-
-            {showError && (
-                <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
-                Please add a title or some content before saving.
-                </div>
-            )}
-
-            {showDeleteConfirm && (
-                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
-                <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
-                <div className="flex gap-2">
-                    <Button 
-                    size="sm" 
-                    variant="destructive" 
-                    onClick={handleDelete}
-                    type="button"
-                    >
-                    Delete
-                    </Button>
-                    <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => setShowDeleteConfirm(false)}
-                    type="button"
-                    >
-                    Cancel
-                    </Button>
-                </div>
-                </div>
-            )}
-            
-            <div className="mt-4 flex justify-end">
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleClose} type="button">
-                    Cancel
-                  </Button>
-                <Button onClick={handleSave} type="button">
-                    {isEditing ? 'Update Task' : 'Save Task'}
-                </Button>
-                </div>
-            </div>
           </div>
+
+          {showError && (
+            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex-shrink-0">
+              Please add a title or some content before saving.
+            </div>
+          )}
+          {showDeleteConfirm && (
+            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded flex-shrink-0">
+              <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button">Cancel</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
+
+        <div className="px-6 py-4 border-t flex justify-end flex-shrink-0 bg-gray-50">
+            <div className="flex gap-2">
+            <Button variant="outline" onClick={handleClose} type="button">
+                Cancel
+            </Button>
+            <Button onClick={handleSave} type="button">
+                {isEditing ? 'Update Task' : 'Save Task'}
+            </Button>
+            </div>
+        </div>
       </Card>
     </div>
   );
