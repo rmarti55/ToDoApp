@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
+import { useState, useEffect, useRef, useCallback, useTransition, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ interface TaskCardProps {
   currentCategoryId?: string | null;
   onClose: () => void;
   onSave: (title: string, content: string, categoryId: string | null) => void;
+  onAutoSave?: (taskId: string, title: string, content: string, categoryId: string | null) => Promise<void>;
   onDelete?: () => void;
 }
 
@@ -52,7 +53,7 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   return debounced as (...args: Parameters<F>) => void;
 }
 
-export function TaskCard({ task, categories, currentCategoryId, onClose, onSave, onDelete }: TaskCardProps) {
+export function TaskCard({ task, categories, currentCategoryId, onClose, onSave, onAutoSave, onDelete }: TaskCardProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -139,6 +140,46 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
     if (isEditing) setAutoSaveStatus('idle');
   };
 
+  const performAutoSave = useCallback(
+    async (taskId: string, currentTitle: string, currentContent: string, currentCatId: string | null) => {
+      if (!onAutoSave) return;
+
+      setAutoSaveStatus('saving');
+      startSaveTransition(async () => {
+        try {
+          await onAutoSave(taskId, currentTitle, currentContent, currentCatId);
+          setAutoSaveStatus('saved');
+        } catch (error) {
+          console.error("Auto-save failed:", error);
+          setAutoSaveStatus('idle');
+        } finally {
+          setTimeout(() => {
+            setAutoSaveStatus(prev => prev === 'saved' ? 'idle' : prev);
+          }, 2000);
+        }
+      });
+    },
+    [onAutoSave, startSaveTransition]
+  );
+
+  const debouncedPerformAutoSave = useMemo(() => debounce(performAutoSave, 1500), [performAutoSave]);
+
+  useEffect(() => {
+    if (isEditing && task && task.id) {
+      const originalTitle = task.title || '';
+      const originalContent = task.content || '';
+      const originalCategoryId = task.category_id || null;
+
+      const hasChanged = title !== originalTitle ||
+                         content !== originalContent ||
+                         selectedCategoryId !== originalCategoryId;
+
+      if (hasChanged) {
+        debouncedPerformAutoSave(task.id, title, content, selectedCategoryId);
+      }
+    }
+  }, [title, content, selectedCategoryId, isEditing, task, debouncedPerformAutoSave]);
+
   const handleSave = () => {
     if (!(title.trim() || content.trim())) {
       setShowError(true);
@@ -213,52 +254,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   // For example, default bullet list from StarterKit is often `*`, `-`, or `+` followed by space.
   // And ordered list is `1.` followed by space.
   // The Cmd+Shift+Number ones are common but not always default in bare TipTap.
-
-  // Debounced auto-save function for existing tasks
-  const debouncedAutoSave = useCallback(
-    debounce((newTitle: string, newContent: string, newCategoryId: string | null) => {
-      if (!task?.id) return; // Should not happen if isEditing is true
-      
-      // Avoid saving if nothing substantial changed from the loaded task state
-      // This check is a bit simplistic, might need refinement if default values are complex
-      if (newTitle === (task.title || '') && 
-          newContent === (task.content || '') && 
-          newCategoryId === (task.category_id || null)) {
-        // If content matches original loaded task, consider it saved or no change needed.
-        // setAutoSaveStatus('idle'); // or 'saved' if we want to be explicit about it.
-        return;
-      }
-
-      if (!(newTitle.trim() || newContent.trim())) {
-        // Optionally, handle case where auto-save might clear a task - for now, let it proceed
-        // Or add a specific status like 'error-empty'
-      }
-
-      setAutoSaveStatus('saving');
-      startSaveTransition(() => {
-        onSave(newTitle, newContent, newCategoryId);
-        // The onSave is expected to be an async call that updates the parent state.
-        // Parent should then re-render TaskCard with updated task prop, triggering useEffect.
-        setAutoSaveStatus('saved');
-        setTimeout(() => setAutoSaveStatus('idle'), 2000); // Hide status after a bit
-      });
-    }, 1500), // 1.5 seconds debounce
-    [task, onSave, startSaveTransition] // task dependency is important here for the closure over task details
-  );
-
-  // useEffect for triggering auto-save on changes when editing an existing task
-  useEffect(() => {
-    if (isEditing && task) {
-      // Check if current state is different from originally loaded task state
-      const hasChanged = title !== (task.title || '') || 
-                         content !== (task.content || '') || 
-                         selectedCategoryId !== (task.category_id || null);
-
-      if (hasChanged) {
-        debouncedAutoSave(title, content, selectedCategoryId);
-      }
-    }
-  }, [title, content, selectedCategoryId, isEditing, task, debouncedAutoSave]);
 
   return (
     <div 
