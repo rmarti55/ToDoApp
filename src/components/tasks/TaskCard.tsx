@@ -92,10 +92,10 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
     <div 
       onKeyDown={handleModalKeyDown} 
       tabIndex={-1} 
-      className="relative z-50 md:w-1/2 xl:w-2/5 w-full p-4 md:p-0"
+      className="relative z-50 md:w-1/2 xl:w-2/5 w-full p-4 md:p-0 flex flex-col"
     >
-      <Card className="w-full mx-auto shadow-xl bg-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2">
+      <Card className="w-full mx-auto shadow-xl bg-white flex flex-col flex-grow overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-2 flex-shrink-0">
           <CardTitle className="text-xl font-bold flex-1 pl-6 py-4">
             <Input
               ref={titleInputRef}
@@ -123,10 +123,12 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-6 pb-6">
-          <RichTextEditor content={content} onChange={setContent} editorInstanceRef={editorRef} /> 
+        <CardContent className="px-6 pb-6 flex flex-col flex-grow overflow-y-auto max-h-[calc(100vh-20rem)] md:max-h-[calc(100vh-22rem)]">
+          <div className="flex-grow min-h-[100px]">
+             <RichTextEditor content={content} onChange={setContent} editorInstanceRef={editorRef} /> 
+          </div>
           
-          <div className="mt-4 mb-3">
+          <div className="mt-4 mb-3 flex-shrink-0">
             <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <div className="relative">
               <select 
@@ -149,7 +151,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
           </div>
 
-          <div className="mt-3 text-xs flex items-center gap-4 flex-wrap">
+          <div className="mt-3 text-xs flex items-center gap-4 flex-wrap flex-shrink-0">
             {formattedCreatedAt && (
               <span className="text-gray-500 flex items-center gap-1">
                 <Clock size={12} /> Created: {formattedCreatedAt}
@@ -163,13 +165,13 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
           </div>
 
           {showError && (
-            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
+            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex-shrink-0">
               Please add a title or some content before saving.
             </div>
           )}
 
           {showDeleteConfirm && (
-            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
+            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded flex-shrink-0">
               <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
               <div className="flex gap-2">
                 <Button 
@@ -192,7 +194,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
           )}
           
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end flex-shrink-0">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose} type="button">
                 Cancel

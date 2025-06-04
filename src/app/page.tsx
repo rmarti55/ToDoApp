@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Plus, Clock, ChevronDown, FolderPlus, Loader2 } from 'lucide-react';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX } from 'lucide-react';
 import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
@@ -26,6 +26,10 @@ export default function Home() {
   const [initialCategoryApplied, setInitialCategoryApplied] = useState(false);
   const [isPending, startTransition] = useTransition();
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // State for "Move to Category" modal
+  const [movingTask, setMovingTask] = useState<ClientTask | null>(null);
+  const [showMoveToCategoryModal, setShowMoveToCategoryModal] = useState(false);
 
   // Load categories on mount
   useEffect(() => {
@@ -188,6 +192,56 @@ export default function Home() {
     });
   };
   
+  const openMoveToCategoryModal = (task: ClientTask, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click from opening edit modal
+    setMovingTask(task);
+    setShowMoveToCategoryModal(true);
+  };
+
+  const closeMoveToCategoryModal = () => {
+    setMovingTask(null);
+    setShowMoveToCategoryModal(false);
+  };
+
+  const handleMoveTaskToNewCategory = (newCategoryId: string | null) => {
+    if (!movingTask) return;
+
+    const { id, title, content } = movingTask; // Current title and content are not changed by move
+    const originalCategoryId = movingTask.category_id || null;
+
+    // Ensure title and content are not null, provide defaults if necessary for updateTask structure
+    const taskDataForUpdate = {
+        title: title || "Untitled Task", 
+        content: content || "", 
+        category_id: newCategoryId,
+    };
+
+    startTransition(() => {
+      updateTask(id, taskDataForUpdate).then(updatedTaskResultDb => {
+        if (updatedTaskResultDb) {
+          // If task moved out of current category view, remove it
+          const currentViewCategoryId = selectedCategory?.id || null;
+          if (originalCategoryId === currentViewCategoryId && newCategoryId !== currentViewCategoryId) {
+            setTasks(prevTasks => prevTasks.filter(t => t.id !== id));
+          } else if (newCategoryId === currentViewCategoryId && originalCategoryId !== currentViewCategoryId) {
+            // If task moved into current category view, add it (or update if somehow already there)
+             const movedTaskClient: ClientTask = { ...updatedTaskResultDb, category_id: updatedTaskResultDb.category_id || null };
+             setTasks(prevTasks => [...prevTasks, movedTaskClient].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+          } else if (newCategoryId === currentViewCategoryId && originalCategoryId === currentViewCategoryId) {
+            // Task category changed but it remains in the current view (e.g. from category A to A, or All Tasks to All tasks but category changed)
+            // This case is for when currentView is All Tasks and task moves between categories, or task stays in same category (though UI shouldn't allow this directly)
+            const movedTaskClient: ClientTask = { ...updatedTaskResultDb, category_id: updatedTaskResultDb.category_id || null };
+            setTasks(prevTasks => prevTasks.map(t => t.id === id ? movedTaskClient : t).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+          }
+        }
+        closeMoveToCategoryModal();
+      }).catch(error => {
+        console.error("Failed to move task", error);
+        closeMoveToCategoryModal(); // Close modal even on error
+      });
+    });
+  };
+
   const totalTasks = tasks.length;
   const totalCategories = categories.length;
 
@@ -294,6 +348,45 @@ export default function Home() {
         </div>
       )}
 
+      {/* "Move to Category" Modal */}
+      {showMoveToCategoryModal && movingTask && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Move "<span className="truncate max-w-[200px] inline-block align-bottom">{movingTask.title || 'Untitled Task'}</span>" to:</h3>
+              <Button variant="ghost" size="icon" onClick={closeMoveToCategoryModal} className="-mr-2 -mt-2">
+                <IconX size={20} />
+              </Button>
+            </div>
+            <ul className="space-y-2 max-h-60 overflow-y-auto">
+              <li>
+                <Button
+                  variant={!movingTask.category_id ? "secondary" : "outline"}
+                  className="w-full justify-start"
+                  onClick={() => handleMoveTaskToNewCategory(null)}
+                  disabled={movingTask.category_id === null || isPending}
+                >
+                  <FolderPlus size={16} className="mr-2" /> All Tasks (Uncategorized)
+                </Button>
+              </li>
+              {categories.map(cat => (
+                <li key={cat.id}>
+                  <Button
+                    variant={movingTask.category_id === cat.id ? "secondary" : "outline"}
+                    className="w-full justify-start"
+                    onClick={() => handleMoveTaskToNewCategory(cat.id)}
+                    disabled={movingTask.category_id === cat.id || isPending}
+                  >
+                    <FolderPlus size={16} className="mr-2" /> {cat.name}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+             {isPending && <div className="flex items-center justify-center mt-4 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Moving task...</div>}
+          </div>
+        </div>
+      )}
+
       {isLoadingCategories ? (
          <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" /></div>
       ) : isLoadingTasks ? (
@@ -314,12 +407,20 @@ export default function Home() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white flex flex-col justify-between h-40 max-h-40 min-h-[10rem] overflow-hidden"
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow group bg-white flex flex-col justify-between h-40 max-h-40 min-h-[10rem] overflow-hidden relative"
               onClick={() => handleCardClick(task)}
               style={{ height: '10rem' }}
             >
+              <Button 
+                variant="ghost"
+                size="icon"
+                className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 h-7 w-7"
+                onClick={(e) => openMoveToCategoryModal(task, e)}
+              >
+                <MoreVertical size={16}/>
+              </Button>
               <div>
-                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate">
+                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate pr-8">
                   {task.title || 'Untitled Task'}
                 </h2>
                 <div
