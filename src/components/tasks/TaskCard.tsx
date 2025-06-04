@@ -281,12 +281,15 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
-            <div className="flex-grow overflow-hidden px-6 pt-6">
+          <CardContent className="flex flex-col flex-grow overflow-hidden p-0 relative">
+            <div className="flex-grow overflow-y-auto px-6 pt-6 pb-16">
               <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
             </div>
             
-            <div className="flex-shrink-0 pt-2 pb-2 border-t bg-gray-50 px-6 mt-auto">
+            {/* Fade gradient overlay when content overflows */}
+            <div className="absolute bottom-20 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none z-10"></div>
+            
+            <div className="absolute bottom-0 left-0 right-0 flex-shrink-0 pt-2 pb-2 border-t bg-gray-50 px-6">
               <div className="mb-2">
                   <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <div className="relative">
@@ -351,7 +354,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             </div>
 
             {showDeleteConfirm && (
-              <div className="px-6 pt-2 pb-2 bg-red-50 border-t flex-shrink-0">
+              <div className="absolute bottom-0 left-0 right-0 px-6 pt-2 pb-2 bg-red-50 border-t flex-shrink-0 z-20">
                 <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
