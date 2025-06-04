@@ -69,13 +69,25 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
   const isEditing = !!task;
   const isMac = typeof window !== 'undefined' ? navigator.platform.toUpperCase().indexOf('MAC') >= 0 : false;
 
+  // Only reset internal state when task ID changes, not when same task is updated
   useEffect(() => {
-    if (task?.id !== prevTaskPropIdRef.current || (!task && prevTaskPropIdRef.current !== null)) {
+    const currentTaskId = task?.id;
+    const prevTaskId = prevTaskPropIdRef.current;
+    
+    // Reset internal state if:
+    // 1. Task ID changes (switching to different task)
+    // 2. Task becomes null (closing editing mode)
+    // 3. Task becomes defined when it was null (opening editing mode)
+    const shouldReset = currentTaskId !== prevTaskId;
+    
+    if (shouldReset) {
       if (task) {
+        // Editing existing task
         setTitle(task.title || '');
         setContent(task.content || '');
         setSelectedCategoryId(task.category_id || null);
       } else {
+        // Creating new task
         try {
           const draftString = localStorage.getItem(NEW_TASK_DRAFT_KEY);
           if (draftString) {
@@ -94,12 +106,12 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
           setContent('');
           setSelectedCategoryId(currentCategoryId || null);
         }
-        if (!task) {
-          setTimeout(() => titleInputRef.current?.focus(), 50);
-        }
+        // Focus title input for new tasks
+        setTimeout(() => titleInputRef.current?.focus(), 50);
       }
     }
-    prevTaskPropIdRef.current = task?.id;
+    
+    prevTaskPropIdRef.current = currentTaskId;
   }, [task, currentCategoryId]);
 
   const saveDraft = useCallback(() => {
@@ -253,22 +265,21 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
               onChange={(e) => handleTitleChange(e.target.value)}
               onKeyDown={handleTitleInputKeyDown}
               className="text-xl font-bold border-none p-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
-              disabled={isSavingInProgress}
             />
           </CardTitle>
-          <div className={`flex gap-1 pr-2 ${isSavingInProgress ? 'opacity-50' : ''}`}>
+          <div className="flex gap-1 pr-2">
             {isEditing && onDelete && (
-              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button" disabled={isSavingInProgress}>
+              <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="text-red-500 hover:text-red-700" type="button">
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={handleClose} type="button" disabled={isSavingInProgress}>
+            <Button variant="ghost" size="icon" onClick={handleClose} type="button">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className={`flex flex-col flex-grow overflow-hidden p-0 ${isSavingInProgress ? 'opacity-75 pointer-events-none' : ''}`}>
+        <CardContent className="flex flex-col flex-grow overflow-hidden p-0">
           <div className="flex-grow overflow-hidden px-6 pt-6">
             <RichTextEditor content={content} onChange={handleContentChange} editorInstanceRef={editorRef} />
           </div>
@@ -285,7 +296,6 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                         handleCategoryChange(value === "uncategorized" ? null : value);
                       }}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm appearance-none bg-white border"
-                      disabled={isSavingInProgress}
                   >
                       <option value="uncategorized">All Tasks (Uncategorized)</option>
                       {categories.map(cat => (
@@ -307,7 +317,7 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
                     ))}
                     <span className="whitespace-nowrap">...</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0" disabled={isSavingInProgress}>
+                <Button variant="ghost" size="icon" onClick={() => setShowAllKeystrokes(s => !s)} className="h-6 w-6 flex-shrink-0">
                     <Info size={14}/>
                 </Button>
               </div>
@@ -347,16 +357,16 @@ export function TaskCard({ task, categories, currentCategoryId, onClose, onSave,
             <div className="px-6 pt-3 pb-3 bg-red-50 border-t flex-shrink-0">
               <p className="text-red-800 text-sm mb-2">Are you sure you want to delete this task?</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="destructive" onClick={handleDelete} type="button" disabled={isSavingInProgress}>Delete</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button" disabled={isSavingInProgress}>Cancel</Button>
+                <Button size="sm" variant="destructive" onClick={handleDelete} type="button">Delete</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} type="button">Cancel</Button>
               </div>
             </div>
           )}
         </CardContent>
 
-        <div className={`flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end ${isSavingInProgress ? 'opacity-50' : ''}`}>
+        <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-end">
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} type="button" disabled={isSavingInProgress}>Cancel</Button>
+              <Button variant="outline" onClick={handleClose} type="button">Cancel</Button>
               <Button onClick={handleSave} type="button" disabled={isSavingInProgress}>{isEditing ? 'Update Task' : 'Save Task'}</Button>
             </div>
         </div>
