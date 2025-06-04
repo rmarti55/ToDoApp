@@ -3,8 +3,8 @@
 import { useState, useEffect, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Plus, Clock } from 'lucide-react';
-import { getTasks, createTask, updateTask, deleteTask, DbTask } from '@/app/actions';
+import { Plus, Clock, ChevronDown, FolderPlus } from 'lucide-react';
+import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
 // Client-side Task interface now includes dates for display and passing to TaskCard
@@ -14,9 +14,15 @@ interface ClientTask {
   content: string | null;
   created_at: string; 
   updated_at: string;
+  category_id?: string | null;
 }
 
 export default function Home() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingTask, setEditingTask] = useState<ClientTask | null>(null);
@@ -24,26 +30,39 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    async function loadCategories() {
+      const cats = await getCategories();
+      setCategories(cats);
+      if (cats.length > 0 && !selectedCategory) {
+        setSelectedCategory(cats[0]);
+      }
+    }
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
     async function loadTasks() {
       setIsLoading(true);
-      const fetchedTasks: DbTask[] = await getTasks();
+      const fetchedTasks: DbTask[] = await getTasksByCategory(selectedCategory?.id || null);
       // Map DbTask to ClientTask
       setTasks(fetchedTasks.map(ft => ({ 
         id: ft.id, 
         title: ft.title, 
         content: ft.content, 
         created_at: ft.created_at,
-        updated_at: ft.updated_at
+        updated_at: ft.updated_at,
+        category_id: ft.category_id || null,
       })));
       setIsLoading(false);
     }
     loadTasks();
-  }, []);
+  }, [selectedCategory]);
 
   const handleSaveTask = (title: string, content: string) => {
     const newTaskData = {
       title: title,
       content,
+      category_id: selectedCategory?.id || null,
     };
     startTransition(() => {
       createTask(newTaskData).then(savedTaskDb => {
@@ -61,6 +80,7 @@ export default function Home() {
     const updatedTaskData = {
       title: title,
       content,
+      category_id: selectedCategory?.id || null,
     };
     startTransition(() => {
       updateTask(id, updatedTaskData).then(updatedTaskResultDb => {
@@ -93,10 +113,81 @@ export default function Home() {
     setEditingTask(null);
   };
 
+  const handleCategorySelect = (cat: Category) => {
+    setSelectedCategory(cat);
+    setShowCategoryDropdown(false);
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const newCat = await createCategory({ name: newCategoryName.trim() });
+    if (newCat) {
+      setCategories(prev => [...prev, newCat]);
+      setSelectedCategory(newCat);
+      setShowNewCategoryInput(false);
+      setNewCategoryName('');
+    }
+  };
+
   return (
     <main className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">My Tasks</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <button
+              className="flex items-center gap-2 px-4 py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-lg font-semibold"
+              onClick={() => setShowCategoryDropdown(v => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={showCategoryDropdown}
+            >
+              <FolderPlus className="w-5 h-5 text-gray-500" />
+              {selectedCategory ? selectedCategory.name : 'No Category'}
+              <ChevronDown className="w-4 h-4 ml-1" />
+              <span className="ml-2 text-xs text-gray-400">({categories.length})</span>
+            </button>
+            {showCategoryDropdown && (
+              <div className="absolute left-0 mt-2 w-56 bg-white border rounded shadow-lg z-50">
+                <ul className="max-h-60 overflow-y-auto" role="listbox">
+                  {categories.map(cat => (
+                    <li
+                      key={cat.id}
+                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${selectedCategory?.id === cat.id ? 'bg-gray-100 font-bold' : ''}`}
+                      onClick={() => handleCategorySelect(cat)}
+                      role="option"
+                      aria-selected={selectedCategory?.id === cat.id}
+                    >
+                      {cat.name}
+                    </li>
+                  ))}
+                </ul>
+                {showNewCategoryInput ? (
+                  <div className="flex items-center gap-2 p-2 border-t">
+                    <input
+                      className="flex-1 border rounded px-2 py-1 text-sm"
+                      placeholder="New category name"
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleCreateCategory();
+                        if (e.key === 'Escape') setShowNewCategoryInput(false);
+                      }}
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleCreateCategory}>Add</Button>
+                  </div>
+                ) : (
+                  <button
+                    className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t"
+                    onClick={() => setShowNewCategoryInput(true)}
+                  >
+                    + Create new category
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <span className="text-gray-500 text-sm ml-2">{tasks.length} tasks</span>
+        </div>
       </div>
 
       {(isCreating || editingTask) && (
@@ -134,13 +225,17 @@ export default function Home() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white flex flex-col justify-between"
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer group bg-white flex flex-col justify-between h-40 max-h-40 min-h-[10rem] overflow-hidden"
               onClick={() => handleCardClick(task)}
+              style={{ height: '10rem' }}
             >
               <div>
-                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{task.title || 'Untitled Task'}</h2>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate">
+                  {task.title || 'Untitled Task'}
+                </h2>
                 <div
-                  className="prose prose-sm max-w-none text-gray-600 break-words mb-3"
+                  className="prose prose-sm max-w-none text-gray-600 break-words mb-3 overflow-hidden text-ellipsis line-clamp-3"
+                  style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                   dangerouslySetInnerHTML={{ __html: task.content || '' }}
                 />
               </div>
@@ -153,10 +248,11 @@ export default function Home() {
           ))}
           {/* Add Task Card */}
           <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors min-h-[120px]"
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors min-h-[120px] h-40 max-h-40"
             onClick={() => setIsCreating(true)}
             tabIndex={0}
             aria-label="Add new task"
+            style={{ height: '10rem' }}
           >
             <div className="w-full h-6 bg-gray-300 rounded mb-2 animate-pulse" />
             <div className="w-2/3 h-4 bg-gray-200 rounded mb-1 animate-pulse" />
