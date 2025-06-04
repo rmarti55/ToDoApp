@@ -26,6 +26,7 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Load categories on mount
   useEffect(() => {
     async function loadInitialCategories() {
       setIsLoadingCategories(true);
@@ -39,13 +40,16 @@ export default function Home() {
     loadInitialCategories();
   }, []);
 
+  // Load tasks when selectedCategory changes
   useEffect(() => {
     async function loadTasksForCategory() {
-      if (!selectedCategory && categories.length > 0) {
+      if (!selectedCategory && categories.length > 0 && !isLoadingCategories) { 
+        // If categories have loaded, and none is selected, default to the first one.
+        // This handles the case where initial selection might not have happened if categories were empty then.
         setSelectedCategory(categories[0]);
         return;
       }
-      if (selectedCategory || categories.length === 0) {
+      if (selectedCategory || (categories.length === 0 && !isLoadingCategories) ) { 
         setIsLoadingTasks(true);
         const fetchedTasks: DbTask[] = await getTasksByCategory(selectedCategory?.id || null);
         setTasks(fetchedTasks.map(ft => ({ ...ft })));
@@ -53,10 +57,11 @@ export default function Home() {
       }
     }
     if (!isLoadingCategories) {
-      loadTasksForCategory();
+        loadTasksForCategory();
     }
   }, [selectedCategory, categories, isLoadingCategories]);
 
+  // Click outside handler for category dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
@@ -133,17 +138,23 @@ export default function Home() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
+    // Optimistic UI update can be added here if desired
     startTransition(async () => {
-      const newCat = await createCategory({ name: newCategoryName.trim() });
-      if (newCat) {
-        setCategories(prev => [...prev, newCat].sort((a,b) => a.name.localeCompare(b.name)));
-        setSelectedCategory(newCat);
+      const newCatServer = await createCategory({ name: newCategoryName.trim() });
+      if (newCatServer) {
+        // Update categories list with the new category from server ensuring it has id and created_at
+        setCategories(prev => [...prev, newCatServer].sort((a,b) => a.name.localeCompare(b.name)));
+        setSelectedCategory(newCatServer); // Select the newly created category
         setShowNewCategoryInput(false);
         setNewCategoryName('');
+        setShowCategoryDropdown(false); // Close the main dropdown as well
+      } else {
+        // Handle error, e.g., show a toast notification
+        console.error("Failed to create category on server. Please check Vercel function logs for specific Supabase errors from 'actions.ts'.");
       }
     });
   };
-
+  
   const totalTasks = tasks.length;
   const totalCategories = categories.length;
 
@@ -152,34 +163,34 @@ export default function Home() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div className="relative" ref={categoryDropdownRef}>
           <button
-            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-base sm:text-lg font-semibold w-full sm:w-auto justify-between"
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border rounded shadow-sm hover:bg-gray-50 text-base sm:text-lg font-semibold w-full sm:min-w-[200px] md:min-w-[250px] justify-between"
             onClick={() => setShowCategoryDropdown(v => !v)}
             aria-haspopup="listbox"
             aria-expanded={showCategoryDropdown}
             disabled={isLoadingCategories || isPending}
           >
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                {selectedCategory ? selectedCategory.name : (isLoadingCategories ? 'Loading...' : 'All Tasks (Uncategorized)')}
-              </span>
+            <div className="flex items-center gap-2 overflow-hidden">
+                <FolderPlus className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                <span className="truncate">
+                {selectedCategory ? selectedCategory.name : (isLoadingCategories ? 'Loading Categories...' : 'All Tasks (Uncategorized)')}
+                </span>
             </div>
-            <div className="flex items-center">
-              {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              <span className="text-xs text-gray-400 mr-1">({totalCategories})</span>
-              <ChevronDown className="w-4 h-4" />
+            <div className="flex items-center flex-shrink-0">
+                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                <span className="text-xs text-gray-400 mr-1">({totalCategories})</span>
+                <ChevronDown className="w-4 h-4" />
             </div>
           </button>
           {showCategoryDropdown && (
-            <div className="absolute left-0 mt-2 w-full sm:w-64 bg-white border rounded shadow-lg z-50">
+            <div className="absolute left-0 mt-2 w-full sm:w-72 md:w-80 bg-white border rounded shadow-lg z-50">
               <ul className="max-h-60 overflow-y-auto" role="listbox">
                 <li 
-                  className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${!selectedCategory ? 'bg-gray-100 font-bold' : ''}`}
-                  onClick={() => handleCategorySelect(null)}
-                  role="option"
-                  aria-selected={!selectedCategory}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${!selectedCategory ? 'bg-gray-100 font-bold' : ''}`}
+                    onClick={() => handleCategorySelect(null)}
+                    role="option"
+                    aria-selected={!selectedCategory}
                 >
-                  All Tasks (Uncategorized)
+                    All Tasks (Uncategorized)
                 </li>
                 {categories.map(cat => (
                   <li
@@ -189,7 +200,7 @@ export default function Home() {
                     role="option"
                     aria-selected={selectedCategory?.id === cat.id}
                   >
-                    {cat.name}
+                    {cat.name} 
                   </li>
                 ))}
               </ul>
@@ -220,7 +231,7 @@ export default function Home() {
           )}
         </div>
         <div className="text-gray-600 text-sm text-right sm:text-left">
-          {isLoadingTasks ? 'Loading tasks...' : `${totalTasks} task${totalTasks !== 1 ? 's' : ''}`}
+            {isLoadingTasks ? 'Loading tasks...' : `${totalTasks} task${totalTasks !== 1 ? 's' : ''}`}
         </div>
       </div>
 
@@ -250,18 +261,20 @@ export default function Home() {
         </div>
       )}
 
-      {isLoadingTasks ? (
+      {isLoadingCategories ? (
+         <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" /></div>
+      ) : isLoadingTasks ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="border rounded-lg p-4 bg-white flex flex-col justify-between h-40 min-h-[10rem] animate-pulse">
-              <div className="w-3/4 h-6 bg-gray-200 rounded mb-2"></div>
-              <div className="w-full h-4 bg-gray-200 rounded mb-1"></div>
-              <div className="w-1/2 h-4 bg-gray-200 rounded mb-3"></div>
-              <div className="mt-auto pt-2 border-t border-gray-100">
-                <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          ))}
+            {[...Array(3)].map((_, i) => (
+                <div key={i} className="border rounded-lg p-4 bg-white flex flex-col justify-between h-40 min-h-[10rem] animate-pulse">
+                    <div className="w-3/4 h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="w-full h-4 bg-gray-200 rounded mb-1"></div>
+                    <div className="w-1/2 h-4 bg-gray-200 rounded mb-3"></div>
+                    <div className="mt-auto pt-2 border-t border-gray-100">
+                        <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                    </div>
+                </div>
+            ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -303,7 +316,7 @@ export default function Home() {
           {tasks.length === 0 && !isCreatingTask && !editingTask && (
             <div className="col-span-full text-center py-12">
               <p className="text-gray-500 text-lg">
-                {selectedCategory ? `No tasks in ${selectedCategory.name}.` : 'No tasks yet.'}
+                {selectedCategory ? `No tasks in ${selectedCategory.name}.` : (isLoadingCategories ? 'Loading categories...' : 'No tasks yet.')}
                 {' '}Click the card above to get started!
               </p>
             </div>
