@@ -394,7 +394,7 @@ export default function Home() {
                 {categories.map(cat => (
                   <li
                     key={cat.id}
-                    className={`flex items-center justify-between px-4 py-2 group ${editingCategoryId === cat.id ? 'bg-blue-50' : (selectedCategory?.id === cat.id && !editingCategoryId ? 'bg-gray-100 font-bold' : 'hover:bg-gray-100')} ${editingCategoryId && editingCategoryId !== cat.id ? 'opacity-50 cursor-not-allowed': 'cursor-pointer'}`}
+                    className={`flex items-center justify-between px-4 py-1.5 group ${editingCategoryId === cat.id ? 'bg-blue-50' : (selectedCategory?.id === cat.id && !editingCategoryId ? 'bg-gray-100 font-bold' : 'hover:bg-gray-100')} ${editingCategoryId && editingCategoryId !== cat.id ? 'opacity-50 cursor-not-allowed': 'cursor-pointer'}`}
                     onClick={() => editingCategoryId !== cat.id ? handleCategorySelect(cat) : undefined}
                     role="option"
                     aria-selected={selectedCategory?.id === cat.id}
@@ -435,7 +435,7 @@ export default function Home() {
               </ul>
               <div className={`${editingCategoryId ? 'opacity-50 cursor-not-allowed': ''}`}> 
                 {showNewCategoryInput ? (
-                  <div className="flex items-center gap-2 p-2 border-t bg-gray-50">
+                  <div className="flex items-center gap-2 px-2 py-1.5 border-t bg-gray-50">
                     <input
                       className="flex-1 border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       placeholder="New category name"
@@ -452,7 +452,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <button
-                    className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 border-t flex items-center gap-2"
+                    className="w-full text-left px-4 py-1.5 text-blue-600 hover:bg-blue-50 border-t flex items-center gap-2"
                     onClick={() => { 
                         if (editingCategoryId) return;
                         setShowNewCategoryInput(true);
