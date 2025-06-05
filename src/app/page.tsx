@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Input } from '@/components/ui/input';
-import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle } from 'lucide-react';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle, Move, Trash2 } from 'lucide-react';
 import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, updateCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
@@ -556,15 +556,6 @@ export default function Home() {
               onClick={() => handleCardClick(task)}
               style={{ height: '10rem' }}
             >
-              <Button 
-                variant="ghost"
-                size="icon"
-                className="absolute top-1 right-1 z-20 text-gray-400 hover:text-gray-700 h-7 w-7"
-                onClick={(e) => openMoveToCategoryModal(task, e)}
-              >
-                <MoreVertical size={16}/>
-              </Button>
-              
               {/* Content area that can scroll behind footer */}
               <div className="p-4 pb-12 h-full overflow-hidden">
                 <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate pr-8">
@@ -588,10 +579,36 @@ export default function Home() {
               </div>
               
               {/* Fixed footer at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pt-2 bg-white border-t border-gray-100 z-10">
+              <div className="absolute bottom-0 left-0 right-0 p-4 pt-2 bg-white border-t border-gray-100 z-10 flex items-center justify-between">
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Clock size={12} /> {formatTaskDate(task.created_at)}
                 </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openMoveToCategoryModal(task, e);
+                    }}
+                    aria-label="Move task"
+                  >
+                    <Move size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 hover:text-red-700 h-10 w-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTask(task.id); 
+                    }}
+                    aria-label="Delete task"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
