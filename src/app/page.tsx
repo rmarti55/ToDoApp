@@ -75,11 +75,13 @@ export default function Home() {
       setInitialCategoryApplied(true); // Mark that initial selection logic has run
     } else {
       // If a category was selected, but it no longer exists (e.g., deleted), fall back to "All Tasks"
-      if (selectedCategory && !categories.find(c => c.id === selectedCategory.id)) {
+      // Only do this if the selectedCategory is NOT a special view.
+      if (selectedCategory && !('isSpecialView' in selectedCategory) && !categories.find(c => c.id === selectedCategory.id)) {
         setSelectedCategory(null);
       }
       // If the selected category is being edited, update its name in selectedCategory state
-      if (selectedCategory && editingCategoryId === selectedCategory.id) {
+      // Also ensure it's not a special view before attempting to find it in categories.
+      if (selectedCategory && !('isSpecialView' in selectedCategory) && editingCategoryId === selectedCategory.id) {
         const updatedCat = categories.find(c => c.id === editingCategoryId);
         if (updatedCat) setSelectedCategory(updatedCat);
       }
