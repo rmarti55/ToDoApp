@@ -571,7 +571,7 @@ export default function Home() {
               <div 
                 className="absolute left-0 right-0 z-10 pointer-events-none"
                 style={{
-                  bottom: 'calc(2.5rem + 1px)', // Adjusted: py-3(0.75) + text(1) + py-3(0.75) + border(1px) = 2.5rem + 1px
+                  bottom: 'calc(2rem + 1px)', // Adjusted: py-2(0.5) + text(1) + py-2(0.5) + border(1px) = 2rem + 1px
                   height: '1.5rem'
                 }}
               >
@@ -579,7 +579,7 @@ export default function Home() {
               </div>
               
               {/* Fixed footer at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-white border-t border-gray-100 z-20 flex items-center justify-between"> {/* Changed padding to px-4 py-3 and z-index to 20 */}
+              <div className="absolute bottom-0 left-0 right-0 px-4 py-2 bg-white border-t border-gray-100 z-20 flex items-center justify-between"> {/* Changed padding to px-4 py-2 */}
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Clock size={12} /> {formatTaskDate(task.created_at)}
                 </span>
