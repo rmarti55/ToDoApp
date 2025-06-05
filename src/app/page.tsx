@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Input } from '@/components/ui/input';
-import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle, Move, Trash2 } from 'lucide-react';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, updateCategory, Category, DbTask } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
@@ -570,16 +570,16 @@ export default function Home() {
               {/* Fade gradient overlay - precisely aligned with the footer's top border */}
               <div 
                 className="absolute left-0 right-0 z-10 pointer-events-none"
-                style={{ 
-                  bottom: 'calc(0.5rem + 1rem + 1rem + 1px)', // Footer: pt-2 (0.5) + text-xs line (1) + pb-4 (1) + border (1px)
-                  height: '1.5rem' // Height of the fade gradient itself
+                style={{
+                  bottom: 'calc(2.5rem + 1px)', // Adjusted: py-3(0.75) + text(1) + py-3(0.75) + border(1px) = 2.5rem + 1px
+                  height: '1.5rem'
                 }}
               >
                 <div className="w-full h-full bg-gradient-to-t from-white to-transparent" />
               </div>
               
               {/* Fixed footer at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pt-2 bg-white border-t border-gray-100 z-10 flex items-center justify-between">
+              <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-white border-t border-gray-100 z-20 flex items-center justify-between"> {/* Changed padding to px-4 py-3 and z-index to 20 */}
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Clock size={12} /> {formatTaskDate(task.created_at)}
                 </span>
@@ -594,7 +594,7 @@ export default function Home() {
                     }}
                     aria-label="Move task"
                   >
-                    <Move size={16} />
+                    <ArrowRightLeft size={16} /> {/* Changed icon to ArrowRightLeft */}
                   </Button>
                   <Button
                     variant="ghost"
