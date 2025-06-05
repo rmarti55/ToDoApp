@@ -571,7 +571,7 @@ export default function Home() {
               <div 
                 className="absolute left-0 right-0 z-10 pointer-events-none"
                 style={{
-                  bottom: 'calc(2rem + 1px)', // Adjusted: py-2(0.5) + text(1) + py-2(0.5) + border(1px) = 2rem + 1px
+                  bottom: 'calc(3rem + 1px)', // Adjusted: py-2(0.5) + button h-8(2rem) + py-2(0.5) + border(1px) = 3rem + 1px
                   height: '1.5rem'
                 }}
               >
@@ -587,7 +587,7 @@ export default function Home() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                    className="text-gray-500 hover:text-gray-700 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       openMoveToCategoryModal(task, e);
@@ -599,7 +599,7 @@ export default function Home() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-red-500 hover:text-red-700 h-10 w-10"
+                    className="text-red-500 hover:text-red-700 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteTask(task.id); 
