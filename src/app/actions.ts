@@ -166,6 +166,10 @@ export async function deleteTask(id: string): Promise<DbTask | null> {
     console.error('Error soft deleting task:', error);
     return null;
   }
+
+  // TEMPORARY DIAGNOSTIC DELAY to allow RLS and cache to catch up before revalidation
+  await new Promise(resolve => setTimeout(resolve, 750)); // 0.75 second delay
+
   revalidatePath('/');
   return data as DbTask;
 }
