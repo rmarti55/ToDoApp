@@ -471,6 +471,16 @@ export default function Home() {
                     )}
                   </li>
                 ))}
+                {/* "Recently Deleted" Link */}
+                <li 
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 border-t ${selectedCategory?.id === RECENTLY_DELETED_VIEW_ID ? 'bg-gray-100 font-bold' : ''} ${editingCategoryId ? 'opacity-50 cursor-not-allowed': ''}`}
+                    onClick={() => !editingCategoryId && handleCategorySelect(RECENTLY_DELETED_VIEW)}
+                    role="option"
+                    aria-selected={selectedCategory?.id === RECENTLY_DELETED_VIEW_ID}
+                  >
+                    <Trash2 size={14} className="inline-block mr-2 -mt-0.5 text-gray-500" />
+                    Recently Deleted
+                </li>
               </ul>
               <div className={`${editingCategoryId ? 'opacity-50 cursor-not-allowed': ''}`}> 
                 {showNewCategoryInput ? (
