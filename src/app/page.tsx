@@ -4,8 +4,8 @@ import { useState, useEffect, useTransition, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Input } from '@/components/ui/input';
-import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle, ArrowRightLeft, Trash2 } from 'lucide-react';
-import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, updateCategory, Category, DbTask } from '@/app/actions';
+import { Plus, Clock, ChevronDown, FolderPlus, Loader2, MoreVertical, X as IconX, Edit3, Check, XCircle, ArrowRightLeft, Trash2, Undo2 } from 'lucide-react';
+import { getTasksByCategory, createTask, updateTask, deleteTask, getCategories, createCategory, updateCategory, Category, DbTask, restoreTask, getRecentlyDeletedTasks } from '@/app/actions';
 import { formatTaskDate } from '@/lib/utils/date-formatter';
 
 // Client-side Task interface now includes dates for display and passing to TaskCard
@@ -13,9 +13,23 @@ interface ClientTask extends Omit<DbTask, 'category_id'> {
   category_id?: string | null;
 }
 
+// Special interface for non-category views like "Recently Deleted"
+interface SpecialView {
+  id: string; // Unique ID like 'recently-deleted'
+  name: string; // Display name like "Recently Deleted"
+  isSpecialView: true; // Discriminator
+}
+
+const RECENTLY_DELETED_VIEW_ID = 'system-view-recently-deleted';
+const RECENTLY_DELETED_VIEW: SpecialView = {
+  id: RECENTLY_DELETED_VIEW_ID,
+  name: 'Recently Deleted',
+  isSpecialView: true,
+};
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | SpecialView | null>(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -74,25 +88,32 @@ export default function Home() {
 
   // Load tasks when selectedCategory changes OR when initial category setup is complete and categories are loaded
   useEffect(() => {
-    async function loadTasksForCurrentCategory() {
-      // Only load tasks if category loading is complete AND initial selection logic has run.
+    async function loadTasksForCurrentView() {
       if (isLoadingCategories || !initialCategoryApplied) {
-        if (initialCategoryApplied && selectedCategory === null) { 
-          // Allow loading for "All Tasks (Uncategorized)" even if categories are still loading, 
-          // provided initial setup decided on 'null'
-        } else {
+        // Special case: allow loading "All Tasks (Uncategorized)" or "Recently Deleted" view even if categories are still loading,
+        // provided initial setup decided on one of these states.
+        const canLoadNonCategoryView = initialCategoryApplied && 
+                                       (selectedCategory === null || (selectedCategory && 'isSpecialView' in selectedCategory && selectedCategory.id === RECENTLY_DELETED_VIEW_ID));
+        if (!canLoadNonCategoryView) {
             return;
         }
       }
       
       setIsLoadingTasks(true);
-      const categoryIdToFetch = selectedCategory?.id || null; // Handles 'null' for "All Tasks"
-      const fetchedTasks: DbTask[] = await getTasksByCategory(categoryIdToFetch);
-      // Ensure category_id is part of the ClientTask, even if undefined
+      let fetchedTasks: DbTask[] = [];
+
+      if (selectedCategory && 'isSpecialView' in selectedCategory && selectedCategory.id === RECENTLY_DELETED_VIEW_ID) {
+        fetchedTasks = await getRecentlyDeletedTasks();
+      } else {
+        // This handles both a specific category OR null (All Tasks / Uncategorized)
+        const categoryIdToFetch = (selectedCategory && !('isSpecialView' in selectedCategory)) ? selectedCategory.id : null;
+        fetchedTasks = await getTasksByCategory(categoryIdToFetch);
+      }
+      
       setTasks(fetchedTasks.map(ft => ({ ...ft, category_id: ft.category_id || null })));
       setIsLoadingTasks(false);
     }
-    loadTasksForCurrentCategory();
+    loadTasksForCurrentView();
   }, [selectedCategory, isLoadingCategories, initialCategoryApplied]);
 
   // Click outside handler for category dropdown
@@ -169,6 +190,10 @@ export default function Home() {
   };
 
   const handleCardClick = (task: ClientTask) => {
+    // Prevent opening the edit modal for soft-deleted tasks
+    if (selectedCategory && 'isSpecialView' in selectedCategory && selectedCategory.id === RECENTLY_DELETED_VIEW_ID) {
+      return;
+    }
     setEditingTask(task);
   };
 
@@ -177,7 +202,7 @@ export default function Home() {
     setEditingTask(null);
   };
 
-  const handleCategorySelect = (cat: Category | null) => {
+  const handleCategorySelect = (cat: Category | SpecialView | null) => {
     if (editingCategoryId) return; // Prevent selection while editing a category name
     setSelectedCategory(cat);
     setShowCategoryDropdown(false);
@@ -344,6 +369,20 @@ export default function Home() {
           reject(error); 
         }
       });
+    });
+  };
+
+  const handleRestoreTask = async (taskId: string) => {
+    startTransition(async () => {
+      const restoredTask = await restoreTask(taskId);
+      if (restoredTask) {
+        // Optimistically remove from the current 'Recently Deleted' view
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+        // revalidatePath('/') in the action will ensure other views are updated if navigated to.
+      } else {
+        // Handle error if needed, e.g., show a toast notification
+        console.error("Failed to restore task from UI");
+      }
     });
   };
 
@@ -549,69 +588,98 @@ export default function Home() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tasks.map((task) => (
+          {tasks.map((task) => {
+            const isDeletedView = selectedCategory && 'isSpecialView' in selectedCategory && selectedCategory.id === RECENTLY_DELETED_VIEW_ID;
+            return (
             <div
               key={task.id}
-              className="border rounded-lg hover:shadow-lg transition-shadow group bg-white h-40 max-h-40 min-h-[10rem] overflow-hidden relative cursor-pointer"
-              onClick={() => handleCardClick(task)}
+              className={`border rounded-lg group bg-white h-40 max-h-40 min-h-[10rem] overflow-hidden relative ${isDeletedView ? 'opacity-75 hover:shadow-md' : 'hover:shadow-lg cursor-pointer'}`}
+              onClick={() => !isDeletedView && handleCardClick(task)} // Only allow click if not in deleted view
               style={{ height: '10rem' }}
             >
               {/* Content area that can scroll behind footer */}
-              <div className="p-4 pb-12 h-full overflow-hidden">
-                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors truncate pr-8">
+              <div className={`p-4 h-full overflow-hidden ${isDeletedView ? 'pb-10' : 'pb-12'}`}> {/* Slightly less bottom padding for content if it's a deleted card to make space for restore button if footer is tight */}
+                <h2 className={`text-xl font-bold mb-2 transition-colors truncate pr-8 ${!isDeletedView ? 'group-hover:text-blue-600' : 'text-gray-700'}`}>
                   {task.title || 'Untitled Task'}
                 </h2>
                 <div
-                  className="prose prose-sm max-w-none text-gray-600 break-words"
+                  className={`prose prose-sm max-w-none break-words ${isDeletedView ? 'text-gray-500' : 'text-gray-600'}`}
                   dangerouslySetInnerHTML={{ __html: task.content || '' }}
                 />
               </div>
               
               {/* Fade gradient overlay - precisely aligned with the footer's top border */}
-              <div 
-                className="absolute left-0 right-0 z-10 pointer-events-none"
-                style={{
-                  bottom: 'calc(3rem + 1px)', // Adjusted: py-2(0.5) + button h-8(2rem) + py-2(0.5) + border(1px) = 3rem + 1px
-                  height: '1.5rem'
-                }}
-              >
-                <div className="w-full h-full bg-gradient-to-t from-white to-transparent" />
-              </div>
+              {!isDeletedView && (
+                <div 
+                  className="absolute left-0 right-0 z-10 pointer-events-none"
+                  style={{
+                    bottom: 'calc(3rem + 1px)', 
+                    height: '1.5rem'
+                  }}
+                >
+                  <div className="w-full h-full bg-gradient-to-t from-white to-transparent" />
+                </div>
+              )}
               
               {/* Fixed footer at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 py-2 bg-white border-t border-gray-100 z-20 flex items-center justify-between"> {/* Changed padding to px-4 py-2 */}
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Clock size={12} /> {formatTaskDate(task.created_at)}
-                </span>
+              <div className={`absolute bottom-0 left-0 right-0 px-4 py-2 bg-white border-t border-gray-100 z-20 flex items-center ${isDeletedView ? 'justify-end' : 'justify-between'}`}> 
+                {!isDeletedView && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Clock size={12} /> {formatTaskDate(task.created_at)}
+                  </span>
+                )}
+                {isDeletedView && task.deleted_at && (
+                  <span className="text-xs text-red-400 flex items-center gap-1 mr-auto">
+                    <Trash2 size={12} /> Deleted: {formatTaskDate(task.deleted_at)}
+                  </span>
+                )}
+
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-gray-500 hover:text-gray-700 h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openMoveToCategoryModal(task, e);
-                    }}
-                    aria-label="Move task"
-                  >
-                    <ArrowRightLeft size={16} /> {/* Changed icon to ArrowRightLeft */}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-700 h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTask(task.id); 
-                    }}
-                    aria-label="Delete task"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                  {isDeletedView ? (
+                    <Button
+                      variant="outline"
+                      size="sm" // Smaller restore button
+                      className="text-gray-600 hover:text-black hover:border-gray-400 h-8 px-2.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRestoreTask(task.id);
+                      }}
+                      aria-label="Restore task"
+                    >
+                      <Undo2 size={14} className="mr-1.5" /> Restore
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-500 hover:text-gray-700 h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openMoveToCategoryModal(task, e);
+                        }}
+                        aria-label="Move task"
+                      >
+                        <ArrowRightLeft size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTask(task.id);
+                        }}
+                        aria-label="Delete task"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
+          )})}
           <div
             className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors min-h-[120px] h-40 max-h-40"
             onClick={() => setIsCreatingTask(true)}

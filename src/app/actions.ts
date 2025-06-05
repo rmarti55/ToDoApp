@@ -20,6 +20,8 @@ export interface DbTask {
   created_at: string;
   updated_at: string;
   category_id?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface TaskInput {
@@ -152,15 +154,68 @@ export async function updateTask(id: string, taskData: TaskInput): Promise<DbTas
   return data as DbTask;
 }
 
-export async function deleteTask(id: string): Promise<boolean> {
-  const { error } = await supabase
+export async function deleteTask(id: string): Promise<DbTask | null> {
+  const { data, error } = await supabase
     .from('tasks')
-    .delete()
-    .eq('id', id);
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
   if (error) {
-    console.error('Error deleting task:', error);
-    return false;
+    console.error('Error soft deleting task:', error);
+    return null;
   }
   revalidatePath('/');
-  return true;
-} 
+  return data as DbTask;
+}
+
+export async function restoreTask(id: string): Promise<DbTask | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ is_deleted: false, deleted_at: null })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error restoring task:', error);
+    return null;
+  }
+  revalidatePath('/');
+  return data as DbTask;
+}
+
+export async function getRecentlyDeletedTasks(): Promise<DbTask[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('is_deleted', true)
+    .order('deleted_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching recently deleted tasks:', error);
+    return [];
+  }
+  return data as DbTask[];
+}
+
+// Placeholder for future functionality - not yet implemented in UI
+// export async function permanentlyDeleteTask(id: string): Promise<boolean> {
+//   // Add logic here to check if the task is older than 30 days if needed,
+//   // or just allow direct permanent delete for admin/specific roles.
+//   // This would be a hard delete.
+//   const { error } = await supabase
+//     .from('tasks')
+//     .delete()
+//     .eq('id', id);
+
+//   if (error) {
+//     console.error('Error permanently deleting task:', error);
+//     return false;
+//   }
+//   revalidatePath('/');
+//   return true;
+// }
+
+// (Consider scheduled function for auto-purge of tasks older than 30 days based on deleted_at) 
